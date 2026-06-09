@@ -7,6 +7,17 @@ import { deleteBuyer } from './actions'
 import { BuyerFormDialog } from './buyer-form-dialog'
 import { Button } from '@/components/ui/button'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
   Table,
   TableBody,
   TableCell,
@@ -22,7 +33,6 @@ function BuyerRow({ buyer }: { buyer: Buyer }) {
   const [pending, startTransition] = useTransition()
 
   function handleDelete() {
-    if (!window.confirm(`Delete buyer "${buyer.name}"? This cannot be undone.`)) return
     startTransition(async () => {
       const res = await deleteBuyer(buyer.id)
       if (res?.error) toast.error(res.error)
@@ -46,16 +56,35 @@ function BuyerRow({ buyer }: { buyer: Buyer }) {
               </Button>
             }
           />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Delete ${buyer.name}`}
-            disabled={pending}
-            onClick={handleDelete}
-            className="text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="size-4" />
-          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Delete ${buyer.name}`}
+                disabled={pending}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete buyer?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  <span className="font-medium text-foreground">{buyer.name}</span> will be
+                  permanently deleted. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction variant="destructive" onClick={handleDelete}>
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </TableCell>
     </TableRow>
