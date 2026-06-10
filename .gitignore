@@ -40,6 +40,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Local-only — kept on disk, NOT pushed to the public repo
+.claude/
+.mcp.json
+AGENTS.md
+CLAUDE.md
+PLANNING.md
+SUPABASE_SETUP.md
+scripts/
+
 .vercel
 .env
 .env.local
