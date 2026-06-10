@@ -1,8 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useTransition } from 'react'
 import { toast } from 'sonner'
-import { Package, Trash2 } from 'lucide-react'
+import { Package, Pencil, Trash2 } from 'lucide-react'
 import { deleteSku } from './actions'
 import { Button } from '@/components/ui/button'
 import {
@@ -58,7 +59,13 @@ function SkuRowItem({ sku }: { sku: SkuRow }) {
       <TableCell className="font-medium">{sku.name}</TableCell>
       <TableCell className="max-w-sm truncate text-muted-foreground">{sku.description ?? '—'}</TableCell>
       <TableCell className="text-right">
-        <AlertDialog>
+        <div className="flex justify-end gap-1">
+          <Button asChild variant="ghost" size="icon-sm" aria-label={`Edit ${sku.name}`}>
+            <Link href={`/skus/${sku.id}/edit`}>
+              <Pencil className="size-4" />
+            </Link>
+          </Button>
+          <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
               variant="ghost"
@@ -85,7 +92,8 @@ function SkuRowItem({ sku }: { sku: SkuRow }) {
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
-        </AlertDialog>
+          </AlertDialog>
+        </div>
       </TableCell>
     </TableRow>
   )

@@ -4,8 +4,8 @@ import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ImagePlus, Plus, Trash2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { createSku, type SkuPayload } from './actions'
+import { uploadImage } from '@/lib/upload'
+import { createSku, updateSku, type SkuPayload } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -17,9 +17,23 @@ type IronRow = { description: string; section: string; length: string; width: st
 type HardwareRow = { name: string; description: string; quantity: string; unit: string }
 type Packaging = { corrugated_box: string; labels: string; barcode: string; corners: string }
 
+export type SkuInitial = {
+  id: string
+  sku_no: string
+  name: string
+  photo_url: string | null
+  description: string
+  remark: string
+  wood: WoodRow[]
+  iron: IronRow[]
+  hardware: HardwareRow[]
+  packaging: Packaging
+}
+
 const emptyWood = (): WoodRow => ({ description: '', length: '', thickness: '', breadth: '', quantity: '' })
 const emptyIron = (): IronRow => ({ description: '', section: '', length: '', width: '', remark: '' })
 const emptyHardware = (): HardwareRow => ({ name: '', description: '', quantity: '', unit: '' })
+const emptyPackaging = (): Packaging => ({ corrugated_box: '', labels: '', barcode: '', corners: '' })
 
 const num = (v: string): number | null => {
   const t = v.trim()
@@ -31,39 +45,50 @@ const str = (v: string): string | null => v.trim() || null
 
 const ROW_GRID = 'grid grid-cols-2 gap-2'
 
-export function SkuForm() {
+export function SkuForm({ initial }: { initial?: SkuInitial }) {
   const router = useRouter()
+  const editing = Boolean(initial)
 
-  const [skuNo, setSkuNo] = useState('')
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [remark, setRemark] = useState('')
+  const [skuNo, setSkuNo] = useState(initial?.sku_no ?? '')
+  const [name, setName] = useState(initial?.name ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+  const [remark, setRemark] = useState(initial?.remark ?? '')
+
+  const existingPhotoUrl = initial?.photo_url ?? null
   const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [newPreview, setNewPreview] = useState<string | null>(null)
+  const [removePhoto, setRemovePhoto] = useState(false)
+  const preview = newPreview ?? (removePhoto ? null : existingPhotoUrl)
 
-  const [wood, setWood] = useState<WoodRow[]>([emptyWood()])
-  const [iron, setIron] = useState<IronRow[]>([])
-  const [hardware, setHardware] = useState<HardwareRow[]>([emptyHardware()])
-  const [packaging, setPackaging] = useState<Packaging>({ corrugated_box: '', labels: '', barcode: '', corners: '' })
+  const [wood, setWood] = useState<WoodRow[]>(initial?.wood.length ? initial.wood : [emptyWood()])
+  const [iron, setIron] = useState<IronRow[]>(initial?.iron ?? [])
+  const [hardware, setHardware] = useState<HardwareRow[]>(initial?.hardware.length ? initial.hardware : [emptyHardware()])
+  const [packaging, setPackaging] = useState<Packaging>(initial?.packaging ?? emptyPackaging())
 
   const [submitting, setSubmitting] = useState(false)
 
   function onPhotoChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
     setPhotoFile(file)
-    setPhotoPreview(file ? URL.createObjectURL(file) : null)
+    setNewPreview(file ? URL.createObjectURL(file) : null)
+    setRemovePhoto(false)
+  }
+
+  function clearPhoto() {
+    setPhotoFile(null)
+    setNewPreview(null)
+    setRemovePhoto(true)
   }
 
   async function uploadPhoto(file: File): Promise<string | null> {
-    const supabase = createClient()
-    const ext = file.name.split('.').pop() || 'jpg'
-    const path = `skus/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    const { error } = await supabase.storage.from('uploads').upload(path, file)
-    if (error) {
-      toast.error(`Photo upload failed: ${error.message}`)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await uploadImage(fd)
+    if (res.error || !res.url) {
+      toast.error(res.error ?? 'Photo upload failed.')
       return null
     }
-    return supabase.storage.from('uploads').getPublicUrl(path).data.publicUrl
+    return res.url
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -74,13 +99,15 @@ export function SkuForm() {
     }
     setSubmitting(true)
 
-    let photo_url: string | null = null
+    let photo_url: string | null = existingPhotoUrl
     if (photoFile) {
       photo_url = await uploadPhoto(photoFile)
       if (!photo_url) {
         setSubmitting(false)
         return
       }
+    } else if (removePhoto) {
+      photo_url = null
     }
 
     const payload: SkuPayload = {
@@ -117,13 +144,13 @@ export function SkuForm() {
       },
     }
 
-    const res = await createSku(payload)
+    const res = editing ? await updateSku(initial!.id, payload) : await createSku(payload)
     if (res.error) {
       toast.error(res.error)
       setSubmitting(false)
       return
     }
-    toast.success('Item created')
+    toast.success(editing ? 'Item updated' : 'Item created')
     router.push('/skus')
     router.refresh()
   }
@@ -152,24 +179,16 @@ export function SkuForm() {
             <Label>Photo</Label>
             <div className="flex items-center gap-3">
               <label className="flex size-20 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted/40 text-muted-foreground transition-colors hover:bg-muted">
-                {photoPreview ? (
+                {preview ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoPreview} alt="Preview" className="size-full object-cover" />
+                  <img src={preview} alt="Preview" className="size-full object-cover" />
                 ) : (
                   <ImagePlus className="size-5" />
                 )}
                 <input type="file" accept="image/*" onChange={onPhotoChange} className="hidden" />
               </label>
-              {photoPreview ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setPhotoFile(null)
-                    setPhotoPreview(null)
-                  }}
-                >
+              {preview ? (
+                <Button type="button" variant="ghost" size="sm" onClick={clearPhoto}>
                   Remove
                 </Button>
               ) : (
@@ -310,7 +329,7 @@ export function SkuForm() {
           Cancel
         </Button>
         <Button type="submit" disabled={submitting}>
-          {submitting ? 'Saving…' : 'Save item'}
+          {submitting ? 'Saving…' : editing ? 'Save changes' : 'Save item'}
         </Button>
       </div>
     </form>

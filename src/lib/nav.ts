@@ -6,6 +6,7 @@ import {
   Factory,
   Warehouse,
   CreditCard,
+  UserCog,
   type LucideIcon,
 } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
@@ -30,6 +31,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Production', href: '/production', icon: Factory, roles: ['admin', 'manager'] },
   { label: 'Inventory', href: '/inventory', icon: Warehouse, roles: ['admin', 'operator', 'store_manager'] },
   { label: 'Payments', href: '/payments', icon: CreditCard, roles: ['admin'] },
+  { label: 'Users', href: '/users', icon: UserCog, roles: ['admin'] },
 ]
 
 export const ROLE_LABEL: Record<Role, string> = {

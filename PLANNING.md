@@ -234,6 +234,7 @@ Rule: pehle masters, phir transactions. Sequence isliye important hai.
 - [ ] **Challan / PO print** ka exact format (sample chahiye)
 - [ ] **SKU No** — auto format kya (e.g. SKU-001) ya manual?
 - [ ] **Multi-buyer per container?** ya ek container = ek PO?
+- [ ] **Invoice** — generate an invoice from a PO / payment. Format to be provided by the client (TBD).
 - [ ] Aur features jo client baad me batayega...
 
 ---

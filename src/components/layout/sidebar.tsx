@@ -11,7 +11,7 @@ export function Sidebar({ role }: { role: Role }) {
   const items = navForRole(role)
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex">
+    <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex print:hidden">
       <div className="flex h-14 items-center gap-2.5 border-b px-5">
         <span className="grid size-7 place-items-center rounded-md bg-primary text-primary-foreground">
           <Boxes className="size-4" />
@@ -19,7 +19,7 @@ export function Sidebar({ role }: { role: Role }) {
         <span className="font-heading text-[15px] font-semibold tracking-tight">CraftERP</span>
       </div>
 
-      <nav className="flex-1 space-y-0.5 p-3">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
         {items.map((item) => {
           const Icon = item.icon
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
