@@ -1,0 +1,2 @@
+# Secrets are provided via Vercel Environment Variables — never ship env files.
+.env*
