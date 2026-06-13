@@ -12,10 +12,11 @@ export type POPayload = {
   photo_url: string | null
   delivery_date: string | null
   inspection_date: string | null
-  shipping_date: string | null
   shipping_country: string | null
+  brc: boolean
+  brc_deadline: string | null
   status: POStatus
-  line_items: { id?: string; sku_id: string; quantity: number }[]
+  line_items: { id?: string; sku_id: string; quantity: number; stage: string | null }[]
 }
 
 export async function createPO(payload: POPayload): Promise<{ error?: string; id?: string }> {
@@ -39,8 +40,9 @@ export async function createPO(payload: POPayload): Promise<{ error?: string; id
       photo_url: payload.photo_url,
       delivery_date: payload.delivery_date,
       inspection_date: payload.inspection_date,
-      shipping_date: payload.shipping_date,
       shipping_country: payload.shipping_country,
+      brc: payload.brc,
+      brc_deadline: payload.brc_deadline,
       status: payload.status,
     })
     .select('id')
@@ -60,9 +62,9 @@ export async function createPO(payload: POPayload): Promise<{ error?: string; id
     .select('id')
   if (liErr) return { error: liErr.message }
 
-  // Seed one stage-tracking row per line item; the Production module updates these later.
+  // Seed one stage-tracking row per line item with the stage chosen on the form.
   if (inserted && inserted.length) {
-    const stages = inserted.map((row) => ({ po_line_item_id: row.id, current_stage: 'Pending' }))
+    const stages = inserted.map((row, i) => ({ po_line_item_id: row.id, current_stage: items[i]?.stage ?? null }))
     await supabase.from('stage_tracking').insert(stages)
   }
 
@@ -82,8 +84,9 @@ export async function updatePO(id: string, payload: POPayload): Promise<{ error?
     photo_url: payload.photo_url,
     delivery_date: payload.delivery_date,
     inspection_date: payload.inspection_date,
-    shipping_date: payload.shipping_date,
     shipping_country: payload.shipping_country,
+    brc: payload.brc,
+    brc_deadline: payload.brc_deadline,
     status: payload.status,
   }
   if (payload.po_no.trim()) header.po_no = payload.po_no.trim()
@@ -108,6 +111,20 @@ export async function updatePO(id: string, payload: POPayload): Promise<{ error?
         .from('po_line_items')
         .update({ sku_id: l.sku_id, quantity: l.quantity, position: i })
         .eq('id', l.id)
+      // Keep the SKU's production stage in sync with the form selection.
+      const { data: st } = await supabase
+        .from('stage_tracking')
+        .select('id')
+        .eq('po_line_item_id', l.id)
+        .maybeSingle()
+      if (st) {
+        await supabase
+          .from('stage_tracking')
+          .update({ current_stage: l.stage, updated_at: new Date().toISOString() })
+          .eq('id', st.id)
+      } else {
+        await supabase.from('stage_tracking').insert({ po_line_item_id: l.id, current_stage: l.stage })
+      }
     } else {
       const { data: ins } = await supabase
         .from('po_line_items')
@@ -115,7 +132,7 @@ export async function updatePO(id: string, payload: POPayload): Promise<{ error?
         .select('id')
         .single()
       if (ins) {
-        await supabase.from('stage_tracking').insert({ po_line_item_id: ins.id, current_stage: 'Pending' })
+        await supabase.from('stage_tracking').insert({ po_line_item_id: ins.id, current_stage: l.stage })
       }
     }
   }
@@ -131,6 +148,38 @@ export async function updatePOStatus(id: string, status: POStatus): Promise<{ er
   if (error) return { error: error.message }
   revalidatePath('/purchase-orders')
   revalidatePath(`/purchase-orders/${id}`)
+  return {}
+}
+
+/** Set the current production stage for one SKU line on a PO (null = not started). */
+export async function updateLineItemStage(
+  poId: string,
+  lineItemId: string,
+  stage: string | null,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: existing } = await supabase
+    .from('stage_tracking')
+    .select('id')
+    .eq('po_line_item_id', lineItemId)
+    .maybeSingle()
+
+  if (existing) {
+    const { error } = await supabase
+      .from('stage_tracking')
+      .update({ current_stage: stage, updated_at: new Date().toISOString() })
+      .eq('id', existing.id)
+    if (error) return { error: error.message }
+  } else {
+    const { error } = await supabase
+      .from('stage_tracking')
+      .insert({ po_line_item_id: lineItemId, current_stage: stage })
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath('/purchase-orders')
+  revalidatePath(`/purchase-orders/${poId}`)
   return {}
 }
 

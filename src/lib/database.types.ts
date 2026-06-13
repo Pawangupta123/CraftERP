@@ -41,6 +41,45 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          address: string | null
+          city: string | null
+          email: string | null
+          gstin: string | null
+          id: string
+          logo_url: string | null
+          name: string | null
+          phone: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string | null
+          phone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string | null
+          phone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       hardware_components: {
         Row: {
           description: string | null
@@ -326,6 +365,8 @@ export type Database = {
       }
       purchase_orders: {
         Row: {
+          brc: boolean
+          brc_deadline: string | null
           buyer_id: string
           created_at: string
           delivery_date: string | null
@@ -338,6 +379,8 @@ export type Database = {
           status: Database["public"]["Enums"]["po_status"]
         }
         Insert: {
+          brc?: boolean
+          brc_deadline?: string | null
           buyer_id: string
           created_at?: string
           delivery_date?: string | null
@@ -350,6 +393,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["po_status"]
         }
         Update: {
+          brc?: boolean
+          brc_deadline?: string | null
           buyer_id?: string
           created_at?: string
           delivery_date?: string | null
@@ -373,29 +418,35 @@ export type Database = {
       }
       skus: {
         Row: {
+          cbm: number | null
           created_at: string
           description: string | null
           id: string
           name: string
           photo_url: string | null
+          photo_urls: string[]
           remark: string | null
           sku_no: string
         }
         Insert: {
+          cbm?: number | null
           created_at?: string
           description?: string | null
           id?: string
           name: string
           photo_url?: string | null
+          photo_urls?: string[]
           remark?: string | null
           sku_no: string
         }
         Update: {
+          cbm?: number | null
           created_at?: string
           description?: string | null
           id?: string
           name?: string
           photo_url?: string | null
+          photo_urls?: string[]
           remark?: string | null
           sku_no?: string
         }

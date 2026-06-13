@@ -65,7 +65,6 @@ export function PaymentDialog({
   const [percentage, setPercentage] = useState('')
   const [containerNo, setContainerNo] = useState('')
   const [remark, setRemark] = useState('')
-  const [bl, setBl] = useState(false)
   const [brc, setBrc] = useState(false)
 
   function reset() {
@@ -78,7 +77,6 @@ export function PaymentDialog({
     setPercentage(payment?.percentage?.toString() ?? '')
     setContainerNo(payment?.container_no ?? '')
     setRemark(payment?.remark ?? '')
-    setBl(payment?.bl ?? false)
     setBrc(payment?.brc ?? false)
   }
 
@@ -100,7 +98,6 @@ export function PaymentDialog({
       percentage: num(percentage),
       container_no: containerNo.trim() || null,
       remark: remark.trim() || null,
-      bl,
       brc,
     })
     if (res.error) {
@@ -199,10 +196,6 @@ export function PaymentDialog({
           </div>
 
           <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={bl} onCheckedChange={setBl} />
-              BL received
-            </label>
             <label className="flex items-center gap-2 text-sm">
               <Switch checked={brc} onCheckedChange={setBrc} />
               BRC received

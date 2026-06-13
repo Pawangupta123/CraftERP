@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: 'CraftERP — Handicraft Export Management',
+  title: 'JimiFern — Handicraft Export Management',
   description: 'End-to-end ERP for handicraft manufacturing and export',
 }
 

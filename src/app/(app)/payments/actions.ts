@@ -16,7 +16,6 @@ export type PaymentPayload = {
   percentage: number | null
   container_no: string | null
   remark: string | null
-  bl: boolean
   brc: boolean
 }
 
@@ -33,7 +32,6 @@ export async function savePayment(payload: PaymentPayload): Promise<{ error?: st
     percentage: payload.percentage,
     container_no: payload.container_no,
     remark: payload.remark,
-    bl: payload.bl,
     brc: payload.brc,
   }
 

@@ -3,8 +3,9 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ImagePlus, Plus, Trash2 } from 'lucide-react'
+import { ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import { uploadImage } from '@/lib/upload'
+import { compressImage } from '@/lib/compress-image'
 import { createSku, updateSku, type SkuPayload } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,12 +17,15 @@ type WoodRow = { description: string; length: string; thickness: string; breadth
 type IronRow = { description: string; section: string; length: string; width: string; remark: string }
 type HardwareRow = { name: string; description: string; quantity: string; unit: string }
 type Packaging = { corrugated_box: string; labels: string; barcode: string; corners: string }
+// A photo is either already uploaded (url) or a freshly picked local file pending upload.
+type PhotoItem = { url?: string; file?: File; preview: string }
 
 export type SkuInitial = {
   id: string
   sku_no: string
   name: string
-  photo_url: string | null
+  photos: string[]
+  cbm: string
   description: string
   remark: string
   wood: WoodRow[]
@@ -51,14 +55,13 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
 
   const [skuNo, setSkuNo] = useState(initial?.sku_no ?? '')
   const [name, setName] = useState(initial?.name ?? '')
+  const [cbm, setCbm] = useState(initial?.cbm ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [remark, setRemark] = useState(initial?.remark ?? '')
 
-  const existingPhotoUrl = initial?.photo_url ?? null
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [newPreview, setNewPreview] = useState<string | null>(null)
-  const [removePhoto, setRemovePhoto] = useState(false)
-  const preview = newPreview ?? (removePhoto ? null : existingPhotoUrl)
+  const [photos, setPhotos] = useState<PhotoItem[]>(
+    (initial?.photos ?? []).map((url) => ({ url, preview: url })),
+  )
 
   const [wood, setWood] = useState<WoodRow[]>(initial?.wood.length ? initial.wood : [emptyWood()])
   const [iron, setIron] = useState<IronRow[]>(initial?.iron ?? [])
@@ -67,22 +70,21 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
 
   const [submitting, setSubmitting] = useState(false)
 
-  function onPhotoChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null
-    setPhotoFile(file)
-    setNewPreview(file ? URL.createObjectURL(file) : null)
-    setRemovePhoto(false)
+  function onPhotosChange(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
+    setPhotos((prev) => [...prev, ...files.map((file) => ({ file, preview: URL.createObjectURL(file) }))])
+    e.target.value = '' // allow picking the same file again after removing it
   }
 
-  function clearPhoto() {
-    setPhotoFile(null)
-    setNewPreview(null)
-    setRemovePhoto(true)
+  function removePhotoAt(i: number) {
+    setPhotos((prev) => prev.filter((_, idx) => idx !== i))
   }
 
   async function uploadPhoto(file: File): Promise<string | null> {
+    const compressed = await compressImage(file)
     const fd = new FormData()
-    fd.append('file', file)
+    fd.append('file', compressed)
     const res = await uploadImage(fd)
     if (res.error || !res.url) {
       toast.error(res.error ?? 'Photo upload failed.')
@@ -99,21 +101,26 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
     }
     setSubmitting(true)
 
-    let photo_url: string | null = existingPhotoUrl
-    if (photoFile) {
-      photo_url = await uploadPhoto(photoFile)
-      if (!photo_url) {
-        setSubmitting(false)
-        return
+    // Upload any newly added photos; keep already-uploaded ones in their current order.
+    const photo_urls: string[] = []
+    for (const p of photos) {
+      if (p.url) {
+        photo_urls.push(p.url)
+      } else if (p.file) {
+        const url = await uploadPhoto(p.file)
+        if (!url) {
+          setSubmitting(false)
+          return
+        }
+        photo_urls.push(url)
       }
-    } else if (removePhoto) {
-      photo_url = null
     }
 
     const payload: SkuPayload = {
       sku_no: skuNo,
       name,
-      photo_url,
+      photo_urls,
+      cbm: num(cbm),
       description: str(description),
       remark: str(remark),
       wood: wood.map((w) => ({
@@ -175,26 +182,35 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Item name" className="h-9" />
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="cbm">CBM</Label>
+            <Input id="cbm" inputMode="decimal" value={cbm} onChange={(e) => setCbm(e.target.value)} placeholder="Cubic meters per unit" className="h-9" />
+          </div>
+
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>Photo</Label>
-            <div className="flex items-center gap-3">
-              <label className="flex size-20 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted/40 text-muted-foreground transition-colors hover:bg-muted">
-                {preview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={preview} alt="Preview" className="size-full object-cover" />
-                ) : (
-                  <ImagePlus className="size-5" />
-                )}
-                <input type="file" accept="image/*" onChange={onPhotoChange} className="hidden" />
+            <Label>Photos</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              {photos.map((p, i) => (
+                <div key={i} className="relative size-20 overflow-hidden rounded-lg border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.preview} alt={`Photo ${i + 1}`} className="size-full object-cover" />
+                  <button
+                    type="button"
+                    aria-label="Remove photo"
+                    onClick={() => removePhotoAt(i)}
+                    className="absolute top-1 right-1 grid size-5 place-items-center rounded-full bg-background/80 text-muted-foreground shadow-sm transition-colors hover:text-destructive"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+              <label className="flex size-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-muted/40 text-muted-foreground transition-colors hover:bg-muted">
+                <ImagePlus className="size-5" />
+                <span className="text-[10px]">Add</span>
+                <input type="file" accept="image/*" multiple onChange={onPhotosChange} className="hidden" />
               </label>
-              {preview ? (
-                <Button type="button" variant="ghost" size="sm" onClick={clearPhoto}>
-                  Remove
-                </Button>
-              ) : (
-                <span className="text-sm text-muted-foreground">Upload a product photo (optional).</span>
-              )}
             </div>
+            <p className="text-xs text-muted-foreground">Add one or more product photos (optional). The first is used as the thumbnail and shown on the PO.</p>
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
@@ -212,7 +228,7 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
       <Card>
         <CardHeader>
           <CardTitle>Wood</CardTitle>
-          <CardDescription>Per-piece dimensions. Add a row for each different size. (Total CFT is calculated later at PO time.)</CardDescription>
+          <CardDescription>Per-piece dimensions. Add a row for each different size.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="hidden px-1 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_5rem_5rem_5rem_5rem_2.25rem] sm:gap-2">

@@ -56,12 +56,22 @@ create table public.buyers (
   created_at timestamptz not null default now()
 );
 
+-- ---------- COMPANY SETTINGS (single row; seller details on the invoice) ----------
+create table public.company_settings (
+  id         uuid primary key default gen_random_uuid(),
+  name       text, address text, city text, gstin text,
+  website    text, email text, phone text, logo_url text,
+  updated_at timestamptz not null default now()
+);
+
 -- ---------- SKUs + raw-material components (BOM) ----------
 create table public.skus (
   id          uuid primary key default gen_random_uuid(),
   sku_no      text unique not null,
   name        text not null,
-  photo_url   text,
+  photo_url   text,                                  -- primary photo (kept = photo_urls[1] for thumbnails)
+  photo_urls  text[] not null default '{}',          -- all photos for the SKU
+  cbm         numeric,                               -- volume per SKU (manual for now; auto-calc formula TBD)
   description text,
   remark      text,
   created_at  timestamptz not null default now()
@@ -101,8 +111,10 @@ create table public.purchase_orders (
   po_no            text unique not null,
   buyer_id         uuid not null references public.buyers(id) on delete restrict,
   photo_url        text,
-  delivery_date    date, inspection_date date, shipping_date date,
+  delivery_date    date, inspection_date date, shipping_date date,  -- delivery_date is the deadline; shipping_date no longer used in UI
   shipping_country text,
+  brc              boolean not null default false,                  -- Bank Realisation Certificate received
+  brc_deadline     date,
   status           public.po_status not null default 'upcoming',
   created_at       timestamptz not null default now()
 );
@@ -169,6 +181,11 @@ create policy profiles_write on public.profiles for all to authenticated
 
 create policy buyers_read  on public.buyers for select to authenticated using (true);
 create policy buyers_write on public.buyers for all to authenticated
+  using (private.current_user_role() = 'admin') with check (private.current_user_role() = 'admin');
+
+alter table public.company_settings enable row level security;
+create policy company_read  on public.company_settings for select to authenticated using (true);
+create policy company_write on public.company_settings for all to authenticated
   using (private.current_user_role() = 'admin') with check (private.current_user_role() = 'admin');
 
 create policy skus_read  on public.skus for select to authenticated using (true);

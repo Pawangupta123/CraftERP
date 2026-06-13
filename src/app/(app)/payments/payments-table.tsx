@@ -63,7 +63,6 @@ function PaymentRow({ payment, poNo, pos }: { payment: Payment; poNo: string; po
       <TableCell className="text-muted-foreground tabular-nums">{payment.conversion_rate ?? '—'}</TableCell>
       <TableCell className="tabular-nums">{payment.percentage === null ? '—' : `${payment.percentage}%`}</TableCell>
       <TableCell>{payment.container_no ?? '—'}</TableCell>
-      <TableCell><YesNo value={payment.bl} /></TableCell>
       <TableCell><YesNo value={payment.brc} /></TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
@@ -110,12 +109,11 @@ export function PaymentsTable({ payments, pos }: { payments: Payment[]; pos: POO
         <TableHeader>
           <TableRow>
             <TableHead>PO No.</TableHead>
-            <TableHead>Date</TableHead>
+            <TableHead className="whitespace-nowrap">Received payment date</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead>Rate</TableHead>
             <TableHead>%</TableHead>
             <TableHead>Container</TableHead>
-            <TableHead>BL</TableHead>
             <TableHead>BRC</TableHead>
             <TableHead className="w-0 text-right">Actions</TableHead>
           </TableRow>

@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ImagePlus, Plus, Trash2 } from 'lucide-react'
 import { uploadImage } from '@/lib/upload'
+import { compressImage } from '@/lib/compress-image'
+import { PRODUCTION_STAGES } from '@/lib/po-stages'
 import { createPO, updatePO, type POPayload } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -20,7 +23,7 @@ import {
 
 type BuyerOpt = { id: string; name: string }
 type SkuOpt = { id: string; sku_no: string; name: string }
-type LineItem = { id?: string; sku_id: string; quantity: string }
+type LineItem = { id?: string; sku_id: string; quantity: string; stage: string }
 type Status = 'upcoming' | 'in_progress' | 'completed'
 
 export type POInitial = {
@@ -30,8 +33,9 @@ export type POInitial = {
   photo_url: string | null
   delivery_date: string
   inspection_date: string
-  shipping_date: string
   shipping_country: string
+  brc: boolean
+  brc_deadline: string
   status: Status
   line_items: LineItem[]
 }
@@ -56,11 +60,13 @@ export function POForm({
 
   const [poNo, setPoNo] = useState(initial?.po_no ?? '')
   const [buyerId, setBuyerId] = useState(initial?.buyer_id ?? '')
-  const [status, setStatus] = useState<Status>(initial?.status ?? 'upcoming')
+  // PO status is set on the detail page, not at create/edit time. New POs default to "upcoming".
+  const status: Status = initial?.status ?? 'upcoming'
   const [shippingCountry, setShippingCountry] = useState(initial?.shipping_country ?? '')
   const [deliveryDate, setDeliveryDate] = useState(initial?.delivery_date ?? '')
   const [inspectionDate, setInspectionDate] = useState(initial?.inspection_date ?? '')
-  const [shippingDate, setShippingDate] = useState(initial?.shipping_date ?? '')
+  const [brc, setBrc] = useState(initial?.brc ?? false)
+  const [brcDeadline, setBrcDeadline] = useState(initial?.brc_deadline ?? '')
 
   const existingPhotoUrl = initial?.photo_url ?? null
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -69,7 +75,7 @@ export function POForm({
   const preview = newPreview ?? (removePhoto ? null : existingPhotoUrl)
 
   const [lines, setLines] = useState<LineItem[]>(
-    initial?.line_items.length ? initial.line_items : [{ sku_id: '', quantity: '1' }],
+    initial?.line_items.length ? initial.line_items : [{ sku_id: '', quantity: '1', stage: 'none' }],
   )
   const [submitting, setSubmitting] = useState(false)
 
@@ -94,7 +100,12 @@ export function POForm({
     }
     const items = lines
       .filter((l) => l.sku_id)
-      .map((l) => ({ id: l.id, sku_id: l.sku_id, quantity: num(l.quantity) }))
+      .map((l) => ({
+        id: l.id,
+        sku_id: l.sku_id,
+        quantity: num(l.quantity),
+        stage: l.stage === 'none' ? null : l.stage,
+      }))
     if (items.length === 0) {
       toast.error('Add at least one item.')
       return
@@ -107,8 +118,9 @@ export function POForm({
 
     let photo_url: string | null = existingPhotoUrl
     if (photoFile) {
+      const compressed = await compressImage(photoFile)
       const fd = new FormData()
-      fd.append('file', photoFile)
+      fd.append('file', compressed)
       const up = await uploadImage(fd)
       if (up.error || !up.url) {
         toast.error(up.error ?? 'Photo upload failed.')
@@ -126,8 +138,9 @@ export function POForm({
       photo_url,
       delivery_date: dateOrNull(deliveryDate),
       inspection_date: dateOrNull(inspectionDate),
-      shipping_date: dateOrNull(shippingDate),
       shipping_country: shippingCountry.trim() || null,
+      brc,
+      brc_deadline: dateOrNull(brcDeadline),
       status,
       line_items: items,
     }
@@ -183,31 +196,22 @@ export function POForm({
             <Input id="shipping_country" value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder="e.g. United States" className="h-9" />
           </div>
           <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as Status)}>
-              <SelectTrigger className="h-9 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="upcoming">Upcoming</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="delivery_date">Delivery date</Label>
+            <Label htmlFor="delivery_date">Delivery date (deadline)</Label>
             <Input id="delivery_date" type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} className="h-9" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="inspection_date">Inspection date</Label>
             <Input id="inspection_date" type="date" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} className="h-9" />
           </div>
+
           <div className="space-y-1.5">
-            <Label htmlFor="shipping_date">Shipping date</Label>
-            <Input id="shipping_date" type="date" value={shippingDate} onChange={(e) => setShippingDate(e.target.value)} className="h-9" />
+            <Label htmlFor="brc_deadline">BRC deadline</Label>
+            <Input id="brc_deadline" type="date" value={brcDeadline} onChange={(e) => setBrcDeadline(e.target.value)} className="h-9" />
           </div>
+          <label className="flex items-center gap-2 self-end pb-2 text-sm">
+            <Switch checked={brc} onCheckedChange={setBrc} />
+            BRC received
+          </label>
 
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Photo</Label>
@@ -236,16 +240,20 @@ export function POForm({
       <Card>
         <CardHeader>
           <CardTitle>Items</CardTitle>
-          <CardDescription>Select items (SKU) and the ordered quantity. Total CFT is computed on the PO.</CardDescription>
+          <CardDescription>Select items (SKU), quantity and current production stage. Total CBM is computed on the PO.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="hidden px-1 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_6rem_2.25rem] sm:gap-2">
+          <div className="hidden px-1 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_5rem_9rem_2.25rem] sm:gap-2">
             <span>Item (SKU)</span>
             <span>Quantity</span>
+            <span>Stage</span>
             <span />
           </div>
           {lines.map((row, i) => (
-            <div key={row.id ?? `new-${i}`} className="grid grid-cols-[minmax(0,1fr)_5rem_2.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6rem_2.25rem]">
+            <div
+              key={row.id ?? `new-${i}`}
+              className="space-y-2 rounded-lg border p-2 sm:grid sm:grid-cols-[minmax(0,1fr)_5rem_9rem_2.25rem] sm:items-center sm:gap-2 sm:space-y-0 sm:rounded-none sm:border-0 sm:p-0"
+            >
               <Select value={row.sku_id} onValueChange={(v) => setLines(lines.map((r, idx) => (idx === i ? { ...r, sku_id: v } : r)))}>
                 <SelectTrigger className="h-9 w-full">
                   <SelectValue placeholder="Select item" />
@@ -262,13 +270,28 @@ export function POForm({
                   )}
                 </SelectContent>
               </Select>
-              <Input aria-label="Quantity" inputMode="numeric" value={row.quantity} onChange={(e) => setLines(lines.map((r, idx) => (idx === i ? { ...r, quantity: e.target.value } : r)))} className="h-9" />
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove item" onClick={() => setLines(lines.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
-                <Trash2 className="size-4" />
-              </Button>
+              <div className="flex items-center gap-2 sm:contents">
+                <Input aria-label="Quantity" inputMode="numeric" value={row.quantity} onChange={(e) => setLines(lines.map((r, idx) => (idx === i ? { ...r, quantity: e.target.value } : r)))} className="h-9 w-16 sm:w-auto" />
+                <Select value={row.stage} onValueChange={(v) => setLines(lines.map((r, idx) => (idx === i ? { ...r, stage: v } : r)))}>
+                  <SelectTrigger className="h-9 w-full flex-1 sm:w-auto sm:flex-none">
+                    <SelectValue placeholder="Stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not started</SelectItem>
+                    {PRODUCTION_STAGES.map((s) => (
+                      <SelectItem key={s.key} value={s.key}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove item" onClick={() => setLines(lines.filter((_, idx) => idx !== i))} className="shrink-0 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
             </div>
           ))}
-          <Button type="button" variant="outline" size="sm" onClick={() => setLines([...lines, { sku_id: '', quantity: '1' }])}>
+          <Button type="button" variant="outline" size="sm" onClick={() => setLines([...lines, { sku_id: '', quantity: '1', stage: 'none' }])}>
             <Plus className="size-4" /> Add item
           </Button>
         </CardContent>

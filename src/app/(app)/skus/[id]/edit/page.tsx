@@ -28,7 +28,8 @@ export default async function EditSkuPage({ params }: { params: Promise<{ id: st
     id: sku.id,
     sku_no: sku.sku_no,
     name: sku.name,
-    photo_url: sku.photo_url,
+    photos: sku.photo_urls ?? [],
+    cbm: n(sku.cbm),
     description: s(sku.description),
     remark: s(sku.remark),
     wood: (woodRes.data ?? []).map((w) => ({

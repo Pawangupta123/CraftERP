@@ -3,10 +3,10 @@ import {
   Users,
   Package,
   FileText,
-  Factory,
   Warehouse,
   CreditCard,
   UserCog,
+  Settings,
   type LucideIcon,
 } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
@@ -28,10 +28,10 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Buyers', href: '/buyers', icon: Users, roles: ['admin'] },
   { label: 'Items (SKU)', href: '/skus', icon: Package, roles: ['admin', 'operator'] },
   { label: 'Purchase Orders', href: '/purchase-orders', icon: FileText, roles: ALL },
-  { label: 'Production', href: '/production', icon: Factory, roles: ['admin', 'manager'] },
   { label: 'Inventory', href: '/inventory', icon: Warehouse, roles: ['admin', 'operator', 'store_manager'] },
   { label: 'Payments', href: '/payments', icon: CreditCard, roles: ['admin'] },
   { label: 'Users', href: '/users', icon: UserCog, roles: ['admin'] },
+  { label: 'Settings', href: '/settings', icon: Settings, roles: ['admin'] },
 ]
 
 export const ROLE_LABEL: Record<Role, string> = {

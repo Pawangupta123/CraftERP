@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Boxes, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -48,12 +48,8 @@ export function MobileNav({ role }: { role: Role }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <span className="flex items-center gap-2 font-heading text-[15px] font-semibold tracking-tight">
-        <span className="grid size-6 place-items-center rounded-md bg-primary text-primary-foreground">
-          <Boxes className="size-3.5" />
-        </span>
-        CraftERP
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo-mark.png" alt="JimiFern" className="h-6 w-auto" />
     </div>
   )
 }

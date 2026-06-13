@@ -9,7 +9,8 @@ type DB = Awaited<ReturnType<typeof createClient>>
 export type SkuPayload = {
   sku_no: string
   name: string
-  photo_url: string | null
+  photo_urls: string[]
+  cbm: number | null
   description: string | null
   remark: string | null
   wood: {
@@ -93,7 +94,9 @@ export async function createSku(payload: SkuPayload): Promise<{ error?: string; 
     .insert({
       sku_no: skuNo,
       name,
-      photo_url: payload.photo_url,
+      photo_urls: payload.photo_urls,
+      photo_url: payload.photo_urls[0] ?? null, // primary photo, used for list thumbnails
+      cbm: payload.cbm,
       description: payload.description,
       remark: payload.remark,
     })
@@ -117,7 +120,9 @@ export async function updateSku(id: string, payload: SkuPayload): Promise<{ erro
 
   const update: Database['public']['Tables']['skus']['Update'] = {
     name,
-    photo_url: payload.photo_url,
+    photo_urls: payload.photo_urls,
+    photo_url: payload.photo_urls[0] ?? null, // primary photo, used for list thumbnails
+    cbm: payload.cbm,
     description: payload.description,
     remark: payload.remark,
   }
