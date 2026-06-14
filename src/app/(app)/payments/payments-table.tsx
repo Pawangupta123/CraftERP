@@ -2,7 +2,7 @@
 
 import { useTransition } from 'react'
 import { toast } from 'sonner'
-import { Check, Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { deletePayment } from './actions'
 import { PaymentDialog } from './payment-dialog'
 import { CURRENCY_SYMBOL } from '@/lib/currency'
@@ -31,16 +31,6 @@ import type { Database } from '@/lib/database.types'
 type Payment = Database['public']['Tables']['payments']['Row']
 type POOpt = { id: string; po_no: string }
 
-function YesNo({ value }: { value: boolean }) {
-  return value ? (
-    <span className="inline-flex items-center gap-1 text-emerald-700">
-      <Check className="size-4" /> Yes
-    </span>
-  ) : (
-    <span className="text-muted-foreground">No</span>
-  )
-}
-
 function PaymentRow({ payment, poNo, pos }: { payment: Payment; poNo: string; pos: POOpt[] }) {
   const [pending, startTransition] = useTransition()
 
@@ -63,7 +53,6 @@ function PaymentRow({ payment, poNo, pos }: { payment: Payment; poNo: string; po
       <TableCell className="text-muted-foreground tabular-nums">{payment.conversion_rate ?? '—'}</TableCell>
       <TableCell className="tabular-nums">{payment.percentage === null ? '—' : `${payment.percentage}%`}</TableCell>
       <TableCell>{payment.container_no ?? '—'}</TableCell>
-      <TableCell><YesNo value={payment.brc} /></TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
           <PaymentDialog
@@ -114,7 +103,6 @@ export function PaymentsTable({ payments, pos }: { payments: Payment[]; pos: POO
             <TableHead>Rate</TableHead>
             <TableHead>%</TableHead>
             <TableHead>Container</TableHead>
-            <TableHead>BRC</TableHead>
             <TableHead className="w-0 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>

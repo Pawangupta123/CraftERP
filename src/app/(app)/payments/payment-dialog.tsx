@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
 import type { Database } from '@/lib/database.types'
 
 type Payment = Database['public']['Tables']['payments']['Row']
@@ -65,7 +64,6 @@ export function PaymentDialog({
   const [percentage, setPercentage] = useState('')
   const [containerNo, setContainerNo] = useState('')
   const [remark, setRemark] = useState('')
-  const [brc, setBrc] = useState(false)
 
   function reset() {
     setError(null)
@@ -77,7 +75,6 @@ export function PaymentDialog({
     setPercentage(payment?.percentage?.toString() ?? '')
     setContainerNo(payment?.container_no ?? '')
     setRemark(payment?.remark ?? '')
-    setBrc(payment?.brc ?? false)
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -98,7 +95,6 @@ export function PaymentDialog({
       percentage: num(percentage),
       container_no: containerNo.trim() || null,
       remark: remark.trim() || null,
-      brc,
     })
     if (res.error) {
       setError(res.error)
@@ -193,13 +189,6 @@ export function PaymentDialog({
           <div className="space-y-1.5">
             <Label htmlFor="remark">Remark</Label>
             <Input id="remark" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="Any note" className="h-9" />
-          </div>
-
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={brc} onCheckedChange={setBrc} />
-              BRC received
-            </label>
           </div>
 
           {error ? (
