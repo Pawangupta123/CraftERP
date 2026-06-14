@@ -105,6 +105,14 @@ create table public.packaging_components (
   position       int default 0
 );
 
+-- Carton/packing sizes (cm). skus.cbm is computed from these = Σ(L×W×H/1e6 ÷ pcs_per_carton).
+create table public.carton_components (
+  id             uuid primary key default gen_random_uuid(),
+  sku_id         uuid not null references public.skus(id) on delete cascade,
+  description    text, length numeric, width numeric, height numeric, pcs_per_carton numeric,
+  position       int default 0
+);
+
 -- ---------- PURCHASE ORDERS + line items ----------
 create table public.purchase_orders (
   id               uuid primary key default gen_random_uuid(),
@@ -168,6 +176,7 @@ alter table public.wood_components     enable row level security;
 alter table public.iron_components     enable row level security;
 alter table public.hardware_components enable row level security;
 alter table public.packaging_components enable row level security;
+alter table public.carton_components    enable row level security;
 alter table public.purchase_orders     enable row level security;
 alter table public.po_line_items       enable row level security;
 alter table public.stage_tracking      enable row level security;
@@ -206,6 +215,10 @@ create policy hardware_write on public.hardware_components for all to authentica
 
 create policy packaging_read  on public.packaging_components for select to authenticated using (true);
 create policy packaging_write on public.packaging_components for all to authenticated
+  using (private.current_user_role() in ('admin','operator')) with check (private.current_user_role() in ('admin','operator'));
+
+create policy carton_read  on public.carton_components for select to authenticated using (true);
+create policy carton_write on public.carton_components for all to authenticated
   using (private.current_user_role() in ('admin','operator')) with check (private.current_user_role() in ('admin','operator'));
 
 create policy po_read  on public.purchase_orders for select to authenticated using (true);

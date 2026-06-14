@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { perPieceCbm, roundCbm } from '@/lib/cbm'
 import type { Database } from '@/lib/database.types'
 
 type DB = Awaited<ReturnType<typeof createClient>>
@@ -10,7 +11,6 @@ export type SkuPayload = {
   sku_no: string
   name: string
   photo_urls: string[]
-  cbm: number | null
   description: string | null
   remark: string | null
   wood: {
@@ -39,6 +39,13 @@ export type SkuPayload = {
     barcode: string | null
     corners: string | null
   } | null
+  cartons: {
+    description: string | null
+    length: number | null
+    width: number | null
+    height: number | null
+    pcs_per_carton: number | null
+  }[]
 }
 
 /** Inserts the material component rows for a SKU. Returns an error message or null. */
@@ -73,6 +80,14 @@ async function insertComponents(supabase: DB, skuId: string, payload: SkuPayload
     if (error) return error.message
   }
 
+  const cartons = payload.cartons
+    .filter((c) => c.description || c.length || c.width || c.height || c.pcs_per_carton)
+    .map((c, i) => ({ sku_id: skuId, ...c, position: i }))
+  if (cartons.length) {
+    const { error } = await supabase.from('carton_components').insert(cartons)
+    if (error) return error.message
+  }
+
   return null
 }
 
@@ -96,7 +111,7 @@ export async function createSku(payload: SkuPayload): Promise<{ error?: string; 
       name,
       photo_urls: payload.photo_urls,
       photo_url: payload.photo_urls[0] ?? null, // primary photo, used for list thumbnails
-      cbm: payload.cbm,
+      cbm: roundCbm(perPieceCbm(payload.cartons)),
       description: payload.description,
       remark: payload.remark,
     })
@@ -122,7 +137,7 @@ export async function updateSku(id: string, payload: SkuPayload): Promise<{ erro
     name,
     photo_urls: payload.photo_urls,
     photo_url: payload.photo_urls[0] ?? null, // primary photo, used for list thumbnails
-    cbm: payload.cbm,
+    cbm: roundCbm(perPieceCbm(payload.cartons)),
     description: payload.description,
     remark: payload.remark,
   }
@@ -136,6 +151,7 @@ export async function updateSku(id: string, payload: SkuPayload): Promise<{ erro
   await supabase.from('iron_components').delete().eq('sku_id', id)
   await supabase.from('hardware_components').delete().eq('sku_id', id)
   await supabase.from('packaging_components').delete().eq('sku_id', id)
+  await supabase.from('carton_components').delete().eq('sku_id', id)
 
   const err = await insertComponents(supabase, id, payload)
   if (err) return { error: err }

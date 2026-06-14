@@ -17,11 +17,12 @@ export default async function EditSkuPage({ params }: { params: Promise<{ id: st
   const { data: sku } = await supabase.from('skus').select('*').eq('id', id).maybeSingle()
   if (!sku) notFound()
 
-  const [woodRes, ironRes, hardwareRes, packagingRes] = await Promise.all([
+  const [woodRes, ironRes, hardwareRes, packagingRes, cartonRes] = await Promise.all([
     supabase.from('wood_components').select('*').eq('sku_id', id).order('position'),
     supabase.from('iron_components').select('*').eq('sku_id', id).order('position'),
     supabase.from('hardware_components').select('*').eq('sku_id', id).order('position'),
     supabase.from('packaging_components').select('*').eq('sku_id', id).maybeSingle(),
+    supabase.from('carton_components').select('*').eq('sku_id', id).order('position'),
   ])
 
   const initial: SkuInitial = {
@@ -29,7 +30,6 @@ export default async function EditSkuPage({ params }: { params: Promise<{ id: st
     sku_no: sku.sku_no,
     name: sku.name,
     photos: sku.photo_urls ?? [],
-    cbm: n(sku.cbm),
     description: s(sku.description),
     remark: s(sku.remark),
     wood: (woodRes.data ?? []).map((w) => ({
@@ -58,6 +58,13 @@ export default async function EditSkuPage({ params }: { params: Promise<{ id: st
       barcode: s(packagingRes.data?.barcode ?? null),
       corners: s(packagingRes.data?.corners ?? null),
     },
+    cartons: (cartonRes.data ?? []).map((c) => ({
+      description: s(c.description),
+      length: n(c.length),
+      width: n(c.width),
+      height: n(c.height),
+      pcs_per_carton: n(c.pcs_per_carton),
+    })),
   }
 
   return (

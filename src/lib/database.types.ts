@@ -41,6 +41,47 @@ export type Database = {
         }
         Relationships: []
       }
+      carton_components: {
+        Row: {
+          description: string | null
+          height: number | null
+          id: string
+          length: number | null
+          pcs_per_carton: number | null
+          position: number | null
+          sku_id: string
+          width: number | null
+        }
+        Insert: {
+          description?: string | null
+          height?: number | null
+          id?: string
+          length?: number | null
+          pcs_per_carton?: number | null
+          position?: number | null
+          sku_id: string
+          width?: number | null
+        }
+        Update: {
+          description?: string | null
+          height?: number | null
+          id?: string
+          length?: number | null
+          pcs_per_carton?: number | null
+          position?: number | null
+          sku_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carton_components_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_settings: {
         Row: {
           address: string | null

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import { uploadImage } from '@/lib/upload'
 import { compressImage } from '@/lib/compress-image'
+import { perPieceCbm, cartonCbm, roundCbm } from '@/lib/cbm'
 import { createSku, updateSku, type SkuPayload } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +18,7 @@ type WoodRow = { description: string; length: string; thickness: string; breadth
 type IronRow = { description: string; section: string; length: string; width: string; remark: string }
 type HardwareRow = { name: string; description: string; quantity: string; unit: string }
 type Packaging = { corrugated_box: string; labels: string; barcode: string; corners: string }
+type CartonRow = { description: string; length: string; width: string; height: string; pcs_per_carton: string }
 // A photo is either already uploaded (url) or a freshly picked local file pending upload.
 type PhotoItem = { url?: string; file?: File; preview: string }
 
@@ -25,19 +27,20 @@ export type SkuInitial = {
   sku_no: string
   name: string
   photos: string[]
-  cbm: string
   description: string
   remark: string
   wood: WoodRow[]
   iron: IronRow[]
   hardware: HardwareRow[]
   packaging: Packaging
+  cartons: CartonRow[]
 }
 
 const emptyWood = (): WoodRow => ({ description: '', length: '', thickness: '', breadth: '', quantity: '' })
 const emptyIron = (): IronRow => ({ description: '', section: '', length: '', width: '', remark: '' })
 const emptyHardware = (): HardwareRow => ({ name: '', description: '', quantity: '', unit: '' })
 const emptyPackaging = (): Packaging => ({ corrugated_box: '', labels: '', barcode: '', corners: '' })
+const emptyCarton = (): CartonRow => ({ description: '', length: '', width: '', height: '', pcs_per_carton: '' })
 
 const num = (v: string): number | null => {
   const t = v.trim()
@@ -55,7 +58,6 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
 
   const [skuNo, setSkuNo] = useState(initial?.sku_no ?? '')
   const [name, setName] = useState(initial?.name ?? '')
-  const [cbm, setCbm] = useState(initial?.cbm ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [remark, setRemark] = useState(initial?.remark ?? '')
 
@@ -67,8 +69,21 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
   const [iron, setIron] = useState<IronRow[]>(initial?.iron ?? [])
   const [hardware, setHardware] = useState<HardwareRow[]>(initial?.hardware.length ? initial.hardware : [emptyHardware()])
   const [packaging, setPackaging] = useState<Packaging>(initial?.packaging ?? emptyPackaging())
+  const [cartons, setCartons] = useState<CartonRow[]>(initial?.cartons.length ? initial.cartons : [emptyCarton()])
 
   const [submitting, setSubmitting] = useState(false)
+
+  // Live CBM contributed by one ordered piece, summed across cartons.
+  const cbmPerPiece = roundCbm(
+    perPieceCbm(
+      cartons.map((c) => ({
+        length: num(c.length),
+        width: num(c.width),
+        height: num(c.height),
+        pcs_per_carton: num(c.pcs_per_carton),
+      })),
+    ),
+  )
 
   function onPhotosChange(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -120,7 +135,6 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
       sku_no: skuNo,
       name,
       photo_urls,
-      cbm: num(cbm),
       description: str(description),
       remark: str(remark),
       wood: wood.map((w) => ({
@@ -149,6 +163,13 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
         barcode: str(packaging.barcode),
         corners: str(packaging.corners),
       },
+      cartons: cartons.map((c) => ({
+        description: str(c.description),
+        length: num(c.length),
+        width: num(c.width),
+        height: num(c.height),
+        pcs_per_carton: num(c.pcs_per_carton),
+      })),
     }
 
     const res = editing ? await updateSku(initial!.id, payload) : await createSku(payload)
@@ -180,11 +201,6 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
               Name <span className="text-destructive">*</span>
             </Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Item name" className="h-9" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="cbm">CBM</Label>
-            <Input id="cbm" inputMode="decimal" value={cbm} onChange={(e) => setCbm(e.target.value)} placeholder="Cubic meters per unit" className="h-9" />
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
@@ -336,6 +352,60 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
           <div className="space-y-1.5">
             <Label htmlFor="corners">Corners</Label>
             <Input id="corners" value={packaging.corners} onChange={(e) => setPackaging({ ...packaging, corners: e.target.value })} className="h-9" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Carton & CBM */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Carton &amp; CBM</CardTitle>
+          <CardDescription>
+            Carton size in cm. CBM is auto-calculated: (L × W × H ÷ 1,000,000) ÷ pieces per carton, summed across rows.
+            On a PO it becomes CBM × ordered quantity. (Leave pieces per carton blank for 1.)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="hidden px-1 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_4.5rem_4.5rem_4.5rem_5rem_4.5rem_2.25rem] sm:gap-2">
+            <span>Description</span>
+            <span>Length</span>
+            <span>Width</span>
+            <span>Height</span>
+            <span>Pcs/carton</span>
+            <span>CBM</span>
+            <span />
+          </div>
+          {cartons.map((row, i) => {
+            const rowCbm = roundCbm(
+              cartonCbm({
+                length: num(row.length),
+                width: num(row.width),
+                height: num(row.height),
+                pcs_per_carton: num(row.pcs_per_carton),
+              }),
+            )
+            return (
+              <div key={i} className={`${ROW_GRID} sm:grid-cols-[minmax(0,1fr)_4.5rem_4.5rem_4.5rem_5rem_4.5rem_2.25rem] sm:gap-2`}>
+                <Input aria-label="Carton description" placeholder="e.g. Master carton" value={row.description} onChange={(e) => setCartons(cartons.map((r, idx) => (idx === i ? { ...r, description: e.target.value } : r)))} className="col-span-2 h-9 sm:col-span-1" />
+                <Input aria-label="Length (cm)" placeholder="L cm" inputMode="decimal" value={row.length} onChange={(e) => setCartons(cartons.map((r, idx) => (idx === i ? { ...r, length: e.target.value } : r)))} className="h-9" />
+                <Input aria-label="Width (cm)" placeholder="W cm" inputMode="decimal" value={row.width} onChange={(e) => setCartons(cartons.map((r, idx) => (idx === i ? { ...r, width: e.target.value } : r)))} className="h-9" />
+                <Input aria-label="Height (cm)" placeholder="H cm" inputMode="decimal" value={row.height} onChange={(e) => setCartons(cartons.map((r, idx) => (idx === i ? { ...r, height: e.target.value } : r)))} className="h-9" />
+                <Input aria-label="Pieces per carton" placeholder="Pcs" inputMode="decimal" value={row.pcs_per_carton} onChange={(e) => setCartons(cartons.map((r, idx) => (idx === i ? { ...r, pcs_per_carton: e.target.value } : r)))} className="h-9" />
+                <div className="hidden h-9 items-center px-1 text-sm tabular-nums text-muted-foreground sm:flex">{rowCbm}</div>
+                <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove carton" onClick={() => setCartons(cartons.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            )
+          })}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <Button type="button" variant="outline" size="sm" onClick={() => setCartons([...cartons, emptyCarton()])}>
+              <Plus className="size-4" /> Add carton
+            </Button>
+            <div className="rounded-lg border bg-muted/30 px-3 py-1.5 text-sm">
+              <span className="text-muted-foreground">CBM per piece: </span>
+              <span className="font-heading font-semibold tabular-nums">{cbmPerPiece}</span>
+            </div>
           </div>
         </CardContent>
       </Card>
