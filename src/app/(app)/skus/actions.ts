@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { perPieceCbm, roundCbm } from '@/lib/cbm'
+import { nextSeq } from '@/lib/next-seq'
 import type { Database } from '@/lib/database.types'
 
 type DB = Awaited<ReturnType<typeof createClient>>
@@ -97,28 +98,44 @@ export async function createSku(payload: SkuPayload): Promise<{ error?: string; 
 
   const supabase = await createClient()
 
-  // Auto-generate SKU number when left blank (SKU-0001, SKU-0002, …)
-  let skuNo = payload.sku_no.trim()
+  // Auto-generate SKU number when left blank (SKU-0001, SKU-0002, …), based on the
+  // highest existing number so deletions don't cause a unique-constraint collision.
+  const manualSkuNo = payload.sku_no.trim()
+  let skuNo = manualSkuNo
   if (!skuNo) {
-    const { count } = await supabase.from('skus').select('*', { count: 'exact', head: true })
-    skuNo = `SKU-${String((count ?? 0) + 1).padStart(4, '0')}`
+    const { data: existing } = await supabase.from('skus').select('sku_no')
+    skuNo = nextSeq((existing ?? []).map((r) => r.sku_no), 'SKU')
   }
 
-  const { data: sku, error } = await supabase
-    .from('skus')
-    .insert({
-      sku_no: skuNo,
-      name,
-      photo_urls: payload.photo_urls,
-      photo_url: payload.photo_urls[0] ?? null, // primary photo, used for list thumbnails
-      cbm: roundCbm(perPieceCbm(payload.cartons)),
-      description: payload.description,
-      remark: payload.remark,
-    })
-    .select('id')
-    .single()
+  const fields = {
+    name,
+    photo_urls: payload.photo_urls,
+    photo_url: payload.photo_urls[0] ?? null, // primary photo, used for list thumbnails
+    cbm: roundCbm(perPieceCbm(payload.cartons)),
+    description: payload.description,
+    remark: payload.remark,
+  }
 
-  if (error || !sku) return { error: error?.message ?? 'Could not create item.' }
+  let sku: { id: string } | null = null
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabase
+      .from('skus')
+      .insert({ sku_no: skuNo, ...fields })
+      .select('id')
+      .single()
+    if (data && !error) {
+      sku = data
+      break
+    }
+    if (error?.code === '23505') {
+      if (manualSkuNo) return { error: `SKU number "${skuNo}" already exists. Choose a different one.` }
+      const { data: existing } = await supabase.from('skus').select('sku_no')
+      skuNo = nextSeq((existing ?? []).map((r) => r.sku_no), 'SKU')
+      continue
+    }
+    return { error: error?.message ?? 'Could not create item.' }
+  }
+  if (!sku) return { error: 'Could not generate a unique SKU number, please try again.' }
 
   const err = await insertComponents(supabase, sku.id, payload)
   if (err) return { error: err }

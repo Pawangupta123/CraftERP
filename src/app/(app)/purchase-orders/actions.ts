@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { nextSeq } from '@/lib/next-seq'
 import type { Database } from '@/lib/database.types'
 
 type POStatus = Database['public']['Enums']['po_status']
@@ -26,29 +27,46 @@ export async function createPO(payload: POPayload): Promise<{ error?: string; id
 
   const supabase = await createClient()
 
-  let poNo = payload.po_no.trim()
+  const manualPoNo = payload.po_no.trim()
+  let poNo = manualPoNo
   if (!poNo) {
-    const { count } = await supabase.from('purchase_orders').select('*', { count: 'exact', head: true })
-    poNo = `PO-${String((count ?? 0) + 1).padStart(4, '0')}`
+    const { data: existing } = await supabase.from('purchase_orders').select('po_no')
+    poNo = nextSeq((existing ?? []).map((r) => r.po_no), 'PO')
   }
 
-  const { data: po, error } = await supabase
-    .from('purchase_orders')
-    .insert({
-      po_no: poNo,
-      buyer_id: payload.buyer_id,
-      photo_url: payload.photo_url,
-      delivery_date: payload.delivery_date,
-      inspection_date: payload.inspection_date,
-      shipping_country: payload.shipping_country,
-      brc: payload.brc,
-      brc_deadline: payload.brc_deadline,
-      status: payload.status,
-    })
-    .select('id')
-    .single()
+  const header = {
+    buyer_id: payload.buyer_id,
+    photo_url: payload.photo_url,
+    delivery_date: payload.delivery_date,
+    inspection_date: payload.inspection_date,
+    shipping_country: payload.shipping_country,
+    brc: payload.brc,
+    brc_deadline: payload.brc_deadline,
+    status: payload.status,
+  }
 
-  if (error || !po) return { error: error?.message ?? 'Could not create PO.' }
+  // Insert; if an auto-generated number collides (e.g. a deletion left a gap, or a race),
+  // recompute and retry. A manual duplicate returns a clear message.
+  let po: { id: string } | null = null
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabase
+      .from('purchase_orders')
+      .insert({ po_no: poNo, ...header })
+      .select('id')
+      .single()
+    if (data && !error) {
+      po = data
+      break
+    }
+    if (error?.code === '23505') {
+      if (manualPoNo) return { error: `PO number "${poNo}" already exists. Choose a different one.` }
+      const { data: existing } = await supabase.from('purchase_orders').select('po_no')
+      poNo = nextSeq((existing ?? []).map((r) => r.po_no), 'PO')
+      continue
+    }
+    return { error: error?.message ?? 'Could not create PO.' }
+  }
+  if (!po) return { error: 'Could not generate a unique PO number, please try again.' }
 
   const lineRows = items.map((l, i) => ({
     po_id: po.id,
