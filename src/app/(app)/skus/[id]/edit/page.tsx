@@ -45,6 +45,7 @@ export default async function EditSkuPage({ params }: { params: Promise<{ id: st
       length: n(x.length),
       width: n(x.width),
       remark: s(x.remark),
+      photos: (x.picture_urls ?? []).map((url) => ({ url, preview: url })),
     })),
     hardware: (hardwareRes.data ?? []).map((h) => ({
       name: s(h.name),

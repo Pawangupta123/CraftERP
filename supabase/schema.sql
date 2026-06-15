@@ -87,7 +87,8 @@ create table public.wood_components (
 create table public.iron_components (
   id          uuid primary key default gen_random_uuid(),
   sku_id      uuid not null references public.skus(id) on delete cascade,
-  description text, section text, length numeric, width numeric, remark text, picture_url text,
+  description text, section text, length numeric, width numeric, remark text,
+  picture_url text, picture_urls text[] not null default '{}',
   position    int default 0
 );
 

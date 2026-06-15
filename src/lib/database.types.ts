@@ -212,6 +212,7 @@ export type Database = {
           id: string
           length: number | null
           picture_url: string | null
+          picture_urls: string[]
           position: number | null
           remark: string | null
           section: string | null
@@ -223,6 +224,7 @@ export type Database = {
           id?: string
           length?: number | null
           picture_url?: string | null
+          picture_urls?: string[]
           position?: number | null
           remark?: string | null
           section?: string | null
@@ -234,6 +236,7 @@ export type Database = {
           id?: string
           length?: number | null
           picture_url?: string | null
+          picture_urls?: string[]
           position?: number | null
           remark?: string | null
           section?: string | null

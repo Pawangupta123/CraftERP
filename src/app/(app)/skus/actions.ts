@@ -27,6 +27,7 @@ export type SkuPayload = {
     length: number | null
     width: number | null
     remark: string | null
+    picture_urls: string[]
   }[]
   hardware: {
     name: string | null
@@ -60,8 +61,8 @@ async function insertComponents(supabase: DB, skuId: string, payload: SkuPayload
   }
 
   const iron = payload.iron
-    .filter((x) => x.description || x.section || x.length || x.width || x.remark)
-    .map((x, i) => ({ sku_id: skuId, ...x, position: i }))
+    .filter((x) => x.description || x.section || x.length || x.width || x.remark || x.picture_urls.length)
+    .map((x, i) => ({ sku_id: skuId, ...x, picture_url: x.picture_urls[0] ?? null, position: i }))
   if (iron.length) {
     const { error } = await supabase.from('iron_components').insert(iron)
     if (error) return error.message

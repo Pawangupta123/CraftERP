@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
 type WoodRow = { description: string; length: string; thickness: string; breadth: string; quantity: string }
-type IronRow = { description: string; section: string; length: string; width: string; remark: string }
+type IronRow = { description: string; section: string; length: string; width: string; remark: string; photos: PhotoItem[] }
 type HardwareRow = { name: string; description: string; quantity: string; unit: string }
 type Packaging = { corrugated_box: string; labels: string; barcode: string; corners: string }
 type CartonRow = { description: string; length: string; width: string; height: string; pcs_per_carton: string }
@@ -37,7 +37,7 @@ export type SkuInitial = {
 }
 
 const emptyWood = (): WoodRow => ({ description: '', length: '', thickness: '', breadth: '', quantity: '' })
-const emptyIron = (): IronRow => ({ description: '', section: '', length: '', width: '', remark: '' })
+const emptyIron = (): IronRow => ({ description: '', section: '', length: '', width: '', remark: '', photos: [] })
 const emptyHardware = (): HardwareRow => ({ name: '', description: '', quantity: '', unit: '' })
 const emptyPackaging = (): Packaging => ({ corrugated_box: '', labels: '', barcode: '', corners: '' })
 const emptyCarton = (): CartonRow => ({ description: '', length: '', width: '', height: '', pcs_per_carton: '' })
@@ -96,6 +96,19 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
     setPhotos((prev) => prev.filter((_, idx) => idx !== i))
   }
 
+  function addIronPhotos(rowIdx: number, files: File[]) {
+    if (files.length === 0) return
+    setIron((prev) =>
+      prev.map((r, i) =>
+        i === rowIdx ? { ...r, photos: [...r.photos, ...files.map((f) => ({ file: f, preview: URL.createObjectURL(f) }))] } : r,
+      ),
+    )
+  }
+
+  function removeIronPhoto(rowIdx: number, photoIdx: number) {
+    setIron((prev) => prev.map((r, i) => (i === rowIdx ? { ...r, photos: r.photos.filter((_, pi) => pi !== photoIdx) } : r)))
+  }
+
   async function uploadPhoto(file: File): Promise<string | null> {
     const compressed = await compressImage(file)
     const fd = new FormData()
@@ -131,6 +144,32 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
       }
     }
 
+    // Upload each iron row's photos (compressed); keep already-uploaded ones in order.
+    const ironPayload: SkuPayload['iron'] = []
+    for (const x of iron) {
+      const picture_urls: string[] = []
+      for (const p of x.photos) {
+        if (p.url) {
+          picture_urls.push(p.url)
+        } else if (p.file) {
+          const url = await uploadPhoto(p.file)
+          if (!url) {
+            setSubmitting(false)
+            return
+          }
+          picture_urls.push(url)
+        }
+      }
+      ironPayload.push({
+        description: str(x.description),
+        section: str(x.section),
+        length: num(x.length),
+        width: num(x.width),
+        remark: str(x.remark),
+        picture_urls,
+      })
+    }
+
     const payload: SkuPayload = {
       sku_no: skuNo,
       name,
@@ -144,13 +183,7 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
         breadth: num(w.breadth),
         quantity: num(w.quantity),
       })),
-      iron: iron.map((x) => ({
-        description: str(x.description),
-        section: str(x.section),
-        length: num(x.length),
-        width: num(x.width),
-        remark: str(x.remark),
-      })),
+      iron: ironPayload,
       hardware: hardware.map((h) => ({
         name: str(h.name),
         description: str(h.description),
@@ -279,29 +312,60 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
           <CardTitle>
             Iron <span className="text-sm font-normal text-muted-foreground">(optional)</span>
           </CardTitle>
-          <CardDescription>Iron components used in this item.</CardDescription>
+          <CardDescription>Iron components used in this item. Add one or more photos per row.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {iron.length === 0 ? (
             <p className="text-sm text-muted-foreground">No iron components.</p>
           ) : (
             iron.map((row, i) => (
-              <div key={i} className={`${ROW_GRID} sm:grid-cols-[minmax(0,1.4fr)_7rem_5rem_5rem_minmax(0,1fr)_2.25rem] sm:gap-2`}>
-                <Input aria-label="Description" placeholder="Description" value={row.description} onChange={(e) => setIron(iron.map((r, idx) => (idx === i ? { ...r, description: e.target.value } : r)))} className="col-span-2 h-9 sm:col-span-1" />
-                <Input aria-label="Section" placeholder="Section" value={row.section} onChange={(e) => setIron(iron.map((r, idx) => (idx === i ? { ...r, section: e.target.value } : r)))} className="h-9" />
-                <Input aria-label="Length" placeholder="Length" inputMode="decimal" value={row.length} onChange={(e) => setIron(iron.map((r, idx) => (idx === i ? { ...r, length: e.target.value } : r)))} className="h-9" />
-                <Input aria-label="Width" placeholder="Width" inputMode="decimal" value={row.width} onChange={(e) => setIron(iron.map((r, idx) => (idx === i ? { ...r, width: e.target.value } : r)))} className="h-9" />
-                <Input aria-label="Remark" placeholder="Remark" value={row.remark} onChange={(e) => setIron(iron.map((r, idx) => (idx === i ? { ...r, remark: e.target.value } : r)))} className="col-span-2 h-9 sm:col-span-1" />
-                <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove row" onClick={() => setIron(iron.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
-                  <Trash2 className="size-4" />
-                </Button>
+              <div key={i} className="space-y-2 rounded-lg border p-3">
+                <div className={`${ROW_GRID} sm:grid-cols-[minmax(0,1.4fr)_7rem_5rem_5rem_minmax(0,1fr)_2.25rem] sm:gap-2`}>
+                  <Input aria-label="Description" placeholder="Description" value={row.description} onChange={(e) => setIron(iron.map((r, idx) => (idx === i ? { ...r, description: e.target.value } : r)))} className="col-span-2 h-9 sm:col-span-1" />
+                  <Input aria-label="Section" placeholder="Section" value={row.section} onChange={(e) => setIron(iron.map((r, idx) => (idx === i ? { ...r, section: e.target.value } : r)))} className="h-9" />
+                  <Input aria-label="Length" placeholder="Length" inputMode="decimal" value={row.length} onChange={(e) => setIron(iron.map((r, idx) => (idx === i ? { ...r, length: e.target.value } : r)))} className="h-9" />
+                  <Input aria-label="Width" placeholder="Width" inputMode="decimal" value={row.width} onChange={(e) => setIron(iron.map((r, idx) => (idx === i ? { ...r, width: e.target.value } : r)))} className="h-9" />
+                  <Input aria-label="Remark" placeholder="Remark" value={row.remark} onChange={(e) => setIron(iron.map((r, idx) => (idx === i ? { ...r, remark: e.target.value } : r)))} className="col-span-2 h-9 sm:col-span-1" />
+                  <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove row" onClick={() => setIron(iron.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {row.photos.map((p, pi) => (
+                    <div key={pi} className="relative size-16 overflow-hidden rounded-md border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.preview} alt={`Iron photo ${pi + 1}`} className="size-full object-cover" />
+                      <button
+                        type="button"
+                        aria-label="Remove photo"
+                        onClick={() => removeIronPhoto(i, pi)}
+                        className="absolute top-0.5 right-0.5 grid size-4 place-items-center rounded-full bg-background/80 text-muted-foreground shadow-sm transition-colors hover:text-destructive"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-dashed bg-muted/40 text-muted-foreground transition-colors hover:bg-muted">
+                    <ImagePlus className="size-4" />
+                    <span className="text-[9px]">Photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        addIronPhotos(i, Array.from(e.target.files ?? []))
+                        e.target.value = ''
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
             ))
           )}
           <Button type="button" variant="outline" size="sm" onClick={() => setIron([...iron, emptyIron()])}>
             <Plus className="size-4" /> Add iron row
           </Button>
-          <p className="text-xs text-muted-foreground">Per-row picture attachment will be added in a later update.</p>
         </CardContent>
       </Card>
 
