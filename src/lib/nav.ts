@@ -7,6 +7,8 @@ import {
   CreditCard,
   UserCog,
   Settings,
+  ShoppingBag,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
@@ -28,6 +30,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Buyers', href: '/buyers', icon: Users, roles: ['admin'] },
   { label: 'Items (SKU)', href: '/skus', icon: Package, roles: ['admin', 'operator'] },
   { label: 'Purchase Orders', href: '/purchase-orders', icon: FileText, roles: ALL },
+  { label: 'Procurement', href: '/procurement', icon: ClipboardList, roles: ['admin', 'operator'] },
+  { label: 'Sourcing', href: '/sourcing', icon: ShoppingBag, roles: ['admin', 'operator'] },
   { label: 'Inventory', href: '/inventory', icon: Warehouse, roles: ['admin', 'operator', 'store_manager'] },
   { label: 'Payments', href: '/payments', icon: CreditCard, roles: ['admin'] },
   { label: 'Users', href: '/users', icon: UserCog, roles: ['admin'] },

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { AlertCircle } from 'lucide-react'
 import { savePayment } from './actions'
-import { CURRENCIES, type Currency } from '@/lib/currency'
+import { COMMON_CURRENCIES } from '@/lib/currency'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -59,7 +59,7 @@ export function PaymentDialog({
   const [poId, setPoId] = useState('')
   const [date, setDate] = useState('')
   const [amount, setAmount] = useState('')
-  const [currency, setCurrency] = useState<Currency>('INR')
+  const [currency, setCurrency] = useState('INR')
   const [rate, setRate] = useState('')
   const [percentage, setPercentage] = useState('')
   const [containerNo, setContainerNo] = useState('')
@@ -159,19 +159,20 @@ export function PaymentDialog({
               <Input id="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="h-9" />
             </div>
             <div className="space-y-1.5">
-              <Label>Currency</Label>
-              <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="currency">Currency</Label>
+              <Input
+                id="currency"
+                list="currency-options"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                placeholder="e.g. INR, USD, GBP"
+                className="h-9"
+              />
+              <datalist id="currency-options">
+                {COMMON_CURRENCIES.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </div>
 
             {currency !== 'INR' ? (

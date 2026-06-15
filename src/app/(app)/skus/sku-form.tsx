@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 type WoodRow = { description: string; length: string; thickness: string; breadth: string; quantity: string }
 type IronRow = { description: string; section: string; length: string; width: string; remark: string; photos: PhotoItem[] }
 type HardwareRow = { name: string; description: string; quantity: string; unit: string }
-type Packaging = { corrugated_box: string; labels: string; barcode: string; corners: string }
+type PackagingMaterialRow = { material: string; specification: string; quantity: string }
 type CartonRow = { description: string; length: string; width: string; height: string; pcs_per_carton: string }
 // A photo is either already uploaded (url) or a freshly picked local file pending upload.
 type PhotoItem = { url?: string; file?: File; preview: string }
@@ -32,14 +32,14 @@ export type SkuInitial = {
   wood: WoodRow[]
   iron: IronRow[]
   hardware: HardwareRow[]
-  packaging: Packaging
+  packaging_materials: PackagingMaterialRow[]
   cartons: CartonRow[]
 }
 
 const emptyWood = (): WoodRow => ({ description: '', length: '', thickness: '', breadth: '', quantity: '' })
 const emptyIron = (): IronRow => ({ description: '', section: '', length: '', width: '', remark: '', photos: [] })
 const emptyHardware = (): HardwareRow => ({ name: '', description: '', quantity: '', unit: '' })
-const emptyPackaging = (): Packaging => ({ corrugated_box: '', labels: '', barcode: '', corners: '' })
+const emptyPackagingMaterial = (): PackagingMaterialRow => ({ material: '', specification: '', quantity: '' })
 const emptyCarton = (): CartonRow => ({ description: '', length: '', width: '', height: '', pcs_per_carton: '' })
 
 const num = (v: string): number | null => {
@@ -68,7 +68,9 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
   const [wood, setWood] = useState<WoodRow[]>(initial?.wood.length ? initial.wood : [emptyWood()])
   const [iron, setIron] = useState<IronRow[]>(initial?.iron ?? [])
   const [hardware, setHardware] = useState<HardwareRow[]>(initial?.hardware.length ? initial.hardware : [emptyHardware()])
-  const [packaging, setPackaging] = useState<Packaging>(initial?.packaging ?? emptyPackaging())
+  const [packagingMaterials, setPackagingMaterials] = useState<PackagingMaterialRow[]>(
+    initial?.packaging_materials.length ? initial.packaging_materials : [emptyPackagingMaterial()],
+  )
   const [cartons, setCartons] = useState<CartonRow[]>(initial?.cartons.length ? initial.cartons : [emptyCarton()])
 
   const [submitting, setSubmitting] = useState(false)
@@ -190,12 +192,11 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
         quantity: num(h.quantity),
         unit: str(h.unit),
       })),
-      packaging: {
-        corrugated_box: str(packaging.corrugated_box),
-        labels: str(packaging.labels),
-        barcode: str(packaging.barcode),
-        corners: str(packaging.corners),
-      },
+      packaging_materials: packagingMaterials.map((m) => ({
+        material: str(m.material),
+        specification: str(m.specification),
+        quantity: str(m.quantity),
+      })),
       cartons: cartons.map((c) => ({
         description: str(c.description),
         length: num(c.length),
@@ -394,38 +395,12 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
         </CardContent>
       </Card>
 
-      {/* Packaging */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Packaging</CardTitle>
-          <CardDescription>Packaging details for this item.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="corrugated_box">Corrugated box</Label>
-            <Input id="corrugated_box" value={packaging.corrugated_box} onChange={(e) => setPackaging({ ...packaging, corrugated_box: e.target.value })} placeholder="Box used" className="h-9" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="labels">Labels</Label>
-            <Input id="labels" value={packaging.labels} onChange={(e) => setPackaging({ ...packaging, labels: e.target.value })} className="h-9" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="barcode">Barcode</Label>
-            <Input id="barcode" value={packaging.barcode} onChange={(e) => setPackaging({ ...packaging, barcode: e.target.value })} className="h-9" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="corners">Corners</Label>
-            <Input id="corners" value={packaging.corners} onChange={(e) => setPackaging({ ...packaging, corners: e.target.value })} className="h-9" />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Carton & CBM */}
       <Card>
         <CardHeader>
-          <CardTitle>Carton &amp; CBM</CardTitle>
+          <CardTitle>Carton Size Master</CardTitle>
           <CardDescription>
-            Carton size in cm. CBM is auto-calculated: (L × W × H ÷ 1,000,000) ÷ pieces per carton, summed across rows.
+            Carton size in cm — CBM is auto-calculated: (L × W × H ÷ 1,000,000) ÷ pieces per carton, summed across rows.
             On a PO it becomes CBM × ordered quantity. (Leave pieces per carton blank for 1.)
           </CardDescription>
         </CardHeader>
@@ -471,6 +446,35 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
               <span className="font-heading font-semibold tabular-nums">{cbmPerPiece}</span>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Packaging Material */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Packaging Material</CardTitle>
+          <CardDescription>Materials used for packing — material, specification/size and quantity. Add as many rows as you need.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="hidden px-1 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem_2.25rem] sm:gap-2">
+            <span>Material</span>
+            <span>Specification / size</span>
+            <span>Quantity</span>
+            <span />
+          </div>
+          {packagingMaterials.map((row, i) => (
+            <div key={i} className={`${ROW_GRID} sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem_2.25rem] sm:gap-2`}>
+              <Input aria-label="Material" placeholder="e.g. Corrugated box / corner / foam" value={row.material} onChange={(e) => setPackagingMaterials(packagingMaterials.map((r, idx) => (idx === i ? { ...r, material: e.target.value } : r)))} className="col-span-2 h-9 sm:col-span-1" />
+              <Input aria-label="Specification" placeholder="e.g. 4 x 4 x 20 cm" value={row.specification} onChange={(e) => setPackagingMaterials(packagingMaterials.map((r, idx) => (idx === i ? { ...r, specification: e.target.value } : r)))} className="col-span-2 h-9 sm:col-span-1" />
+              <Input aria-label="Quantity" placeholder="e.g. 8" value={row.quantity} onChange={(e) => setPackagingMaterials(packagingMaterials.map((r, idx) => (idx === i ? { ...r, quantity: e.target.value } : r)))} className="h-9" />
+              <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove material" onClick={() => setPackagingMaterials(packagingMaterials.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          ))}
+          <Button type="button" variant="outline" size="sm" onClick={() => setPackagingMaterials([...packagingMaterials, emptyPackagingMaterial()])}>
+            <Plus className="size-4" /> Add packaging material
+          </Button>
         </CardContent>
       </Card>
 

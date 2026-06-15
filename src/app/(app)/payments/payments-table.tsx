@@ -1,12 +1,19 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Pencil, Trash2 } from 'lucide-react'
 import { deletePayment } from './actions'
 import { PaymentDialog } from './payment-dialog'
-import { CURRENCY_SYMBOL } from '@/lib/currency'
+import { currencySymbol } from '@/lib/currency'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +50,7 @@ function PaymentRow({ payment, poNo, pos }: { payment: Payment; poNo: string; po
   }
 
   const amount =
-    payment.amount === null ? '—' : `${CURRENCY_SYMBOL[payment.currency]}${payment.amount}`
+    payment.amount === null ? '—' : `${currencySymbol(payment.currency)}${payment.amount}`
 
   return (
     <TableRow className={pending ? 'opacity-50' : undefined}>
@@ -91,27 +98,62 @@ function PaymentRow({ payment, poNo, pos }: { payment: Payment; poNo: string; po
 
 export function PaymentsTable({ payments, pos }: { payments: Payment[]; pos: POOpt[] }) {
   const poMap = new Map(pos.map((p) => [p.id, p.po_no]))
+  const [poFilter, setPoFilter] = useState('all')
+  const shown = poFilter === 'all' ? payments : payments.filter((p) => p.po_id === poFilter)
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>PO No.</TableHead>
-            <TableHead className="whitespace-nowrap">Received payment date</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Rate</TableHead>
-            <TableHead>%</TableHead>
-            <TableHead>Container</TableHead>
-            <TableHead className="w-0 text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {payments.map((payment) => (
-            <PaymentRow key={payment.id} payment={payment} poNo={poMap.get(payment.po_id) ?? '—'} pos={pos} />
-          ))}
-        </TableBody>
-      </Table>
+    <div className="space-y-3">
+      {/* Second filter — PO-wise (the date-wise table below stays as is) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted-foreground">Filter by PO:</span>
+        <Select value={poFilter} onValueChange={setPoFilter}>
+          <SelectTrigger className="h-9 w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All POs</SelectItem>
+            {pos.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.po_no}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {poFilter !== 'all' ? (
+          <Button variant="ghost" size="sm" onClick={() => setPoFilter('all')}>
+            Clear
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>PO No.</TableHead>
+              <TableHead className="whitespace-nowrap">Received payment date</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Rate</TableHead>
+              <TableHead>%</TableHead>
+              <TableHead>Container</TableHead>
+              <TableHead className="w-0 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {shown.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                  No payments{poFilter !== 'all' ? ' for this PO' : ' yet'}.
+                </TableCell>
+              </TableRow>
+            ) : (
+              shown.map((payment) => (
+                <PaymentRow key={payment.id} payment={payment} poNo={poMap.get(payment.po_id) ?? '—'} pos={pos} />
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }

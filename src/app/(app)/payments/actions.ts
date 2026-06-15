@@ -2,16 +2,13 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { Database } from '@/lib/database.types'
-
-type Currency = Database['public']['Enums']['currency_code']
 
 export type PaymentPayload = {
   id?: string
   po_id: string
   date: string | null
   amount: number | null
-  currency: Currency
+  currency: string
   conversion_rate: number | null
   percentage: number | null
   container_no: string | null

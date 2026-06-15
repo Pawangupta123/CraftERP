@@ -35,12 +35,11 @@ export type SkuPayload = {
     quantity: number | null
     unit: string | null
   }[]
-  packaging: {
-    corrugated_box: string | null
-    labels: string | null
-    barcode: string | null
-    corners: string | null
-  } | null
+  packaging_materials: {
+    material: string | null
+    specification: string | null
+    quantity: string | null
+  }[]
   cartons: {
     description: string | null
     length: number | null
@@ -76,9 +75,11 @@ async function insertComponents(supabase: DB, skuId: string, payload: SkuPayload
     if (error) return error.message
   }
 
-  const p = payload.packaging
-  if (p && (p.corrugated_box || p.labels || p.barcode || p.corners)) {
-    const { error } = await supabase.from('packaging_components').insert({ sku_id: skuId, ...p })
+  const pkgMaterials = payload.packaging_materials
+    .filter((m) => m.material || m.specification || m.quantity)
+    .map((m, i) => ({ sku_id: skuId, ...m, position: i }))
+  if (pkgMaterials.length) {
+    const { error } = await supabase.from('packaging_materials').insert(pkgMaterials)
     if (error) return error.message
   }
 
@@ -170,6 +171,7 @@ export async function updateSku(id: string, payload: SkuPayload): Promise<{ erro
   await supabase.from('hardware_components').delete().eq('sku_id', id)
   await supabase.from('packaging_components').delete().eq('sku_id', id)
   await supabase.from('carton_components').delete().eq('sku_id', id)
+  await supabase.from('packaging_materials').delete().eq('sku_id', id)
 
   const err = await insertComponents(supabase, id, payload)
   if (err) return { error: err }

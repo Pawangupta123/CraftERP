@@ -291,6 +291,41 @@ export type Database = {
           },
         ]
       }
+      packaging_materials: {
+        Row: {
+          id: string
+          material: string | null
+          position: number | null
+          quantity: string | null
+          sku_id: string
+          specification: string | null
+        }
+        Insert: {
+          id?: string
+          material?: string | null
+          position?: number | null
+          quantity?: string | null
+          sku_id: string
+          specification?: string | null
+        }
+        Update: {
+          id?: string
+          material?: string | null
+          position?: number | null
+          quantity?: string | null
+          sku_id?: string
+          specification?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packaging_materials_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number | null
@@ -299,7 +334,7 @@ export type Database = {
           container_no: string | null
           conversion_rate: number | null
           created_at: string
-          currency: Database["public"]["Enums"]["currency_code"]
+          currency: string
           date: string | null
           id: string
           percentage: number | null
@@ -313,7 +348,7 @@ export type Database = {
           container_no?: string | null
           conversion_rate?: number | null
           created_at?: string
-          currency?: Database["public"]["Enums"]["currency_code"]
+          currency?: string
           date?: string | null
           id?: string
           percentage?: number | null
@@ -327,7 +362,7 @@ export type Database = {
           container_no?: string | null
           conversion_rate?: number | null
           created_at?: string
-          currency?: Database["public"]["Enums"]["currency_code"]
+          currency?: string
           date?: string | null
           id?: string
           percentage?: number | null
@@ -493,6 +528,45 @@ export type Database = {
           photo_urls?: string[]
           remark?: string | null
           sku_no?: string
+        }
+        Relationships: []
+      }
+      sourcing_entries: {
+        Row: {
+          created_at: string
+          date: string | null
+          id: string
+          item: string | null
+          quantity: number | null
+          rate: number | null
+          remark: string | null
+          status: string | null
+          supplier: string | null
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string | null
+          id?: string
+          item?: string | null
+          quantity?: number | null
+          rate?: number | null
+          remark?: string | null
+          status?: string | null
+          supplier?: string | null
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string | null
+          id?: string
+          item?: string | null
+          quantity?: number | null
+          rate?: number | null
+          remark?: string | null
+          status?: string | null
+          supplier?: string | null
+          unit?: string | null
         }
         Relationships: []
       }
