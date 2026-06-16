@@ -18,7 +18,7 @@ export type LineData = {
   skuNo: string
   skuName: string
   qty: number
-  wood: { description: string | null; length: number | null; thickness: number | null; breadth: number | null; quantity: number | null }[]
+  wood: { wood_name: string | null; description: string | null; length: number | null; thickness: number | null; breadth: number | null; quantity: number | null }[]
   iron: { description: string | null; section: string | null; length: number | null; width: number | null; remark: string | null; picture_urls: string[] }[]
   hardware: { name: string | null; description: string | null; quantity: number | null; unit: string | null }[]
   packaging: { material: string | null; specification: string | null; quantity: string | null }[]
@@ -53,9 +53,10 @@ const TH = 'border border-neutral-300 px-2 py-1.5 text-left font-semibold'
 const TD = 'border border-neutral-300 px-2 py-1.5 align-top'
 
 function WoodTally({ lines }: { lines: LineData[] }) {
-  // Pivot wood across all SKUs (count = qty/pc × order qty), grouped by thickness (section),
-  // then a length (rows) × width (columns) grid, with CFT per row / column / section.
-  const sections = new Map<number, { lengths: number[]; breadths: number[]; count: Map<string, number> }>()
+  // Pivot wood across all SKUs (count = qty/pc × order qty), grouped by wood name + thickness
+  // (a section), then a Length (rows) × Width (columns) grid, with CFT per row / column / section.
+  type Sec = { wood: string; T: number; lengths: number[]; breadths: number[]; count: Map<string, number> }
+  const sections = new Map<string, Sec>()
   for (const l of lines) {
     for (const w of l.wood) {
       const T = w.thickness ?? 0
@@ -63,10 +64,12 @@ function WoodTally({ lines }: { lines: LineData[] }) {
       const B = w.breadth ?? 0
       const c = (w.quantity ?? 0) * l.qty
       if (!c && !L && !B) continue
-      let sec = sections.get(T)
+      const wood = w.wood_name?.trim() || 'Wood'
+      const sk = `${wood}||${T}`
+      let sec = sections.get(sk)
       if (!sec) {
-        sec = { lengths: [], breadths: [], count: new Map() }
-        sections.set(T, sec)
+        sec = { wood, T, lengths: [], breadths: [], count: new Map() }
+        sections.set(sk, sec)
       }
       const key = `${L}|${B}`
       sec.count.set(key, (sec.count.get(key) ?? 0) + c)
@@ -76,47 +79,59 @@ function WoodTally({ lines }: { lines: LineData[] }) {
   }
   if (sections.size === 0) return <Empty label="wood" />
 
-  const secList = [...sections.entries()].sort((a, b) => a[0] - b[0])
+  const secList = [...sections.values()].sort((a, b) => a.wood.localeCompare(b.wood) || a.T - b.T)
   let grand = 0
-  const blocks = secList.map(([T, sec], si) => {
+  const blocks = secList.map((sec, si) => {
     sec.lengths.sort((a, b) => a - b)
     sec.breadths.sort((a, b) => a - b)
     const sectionCft = roundCft(
       [...sec.count.entries()].reduce((s, [k, c]) => {
         const [Ls, Bs] = k.split('|')
-        return s + cellCft(Number(Ls), Number(Bs), T, c)
+        return s + cellCft(Number(Ls), Number(Bs), sec.T, c)
       }, 0),
     )
     grand += sectionCft
-    return { T, sec, si, sectionCft }
+    return { sec, si, sectionCft }
   })
 
   return (
     <div className="space-y-4">
-      {blocks.map(({ T, sec, si, sectionCft }) => (
+      {blocks.map(({ sec, si, sectionCft }) => (
         <div key={si}>
-          <div className="mb-1 flex items-center justify-between">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm">
               <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs font-semibold [print-color-adjust:exact]">Section {si + 1}</span>
-              <span className="font-semibold">Thickness: {T}&quot;</span>
+              <span className="font-semibold">{sec.wood}</span>
+              <span className="text-neutral-400">·</span>
+              <span className="font-semibold">Thickness: {sec.T}&quot;</span>
             </div>
             <span className="text-sm font-semibold text-green-800">Section CFT: {sectionCft}</span>
           </div>
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="bg-neutral-800 text-white [print-color-adjust:exact]">
-                <th className="border border-neutral-700 px-2 py-1.5 text-left">Length</th>
+                <th rowSpan={2} className="border border-neutral-700 px-2 py-1 text-left align-middle">
+                  {sec.wood}
+                  <span className="block text-[9px] font-normal opacity-70">Length (ft) ↓</span>
+                </th>
+                <th colSpan={sec.breadths.length} className="border border-neutral-700 px-2 py-1 text-center">
+                  Width (inch)
+                </th>
+                <th rowSpan={2} className="border border-green-900 bg-green-800 px-2 py-1 text-center align-middle [print-color-adjust:exact]">
+                  CFT
+                </th>
+              </tr>
+              <tr className="bg-neutral-800 text-white [print-color-adjust:exact]">
                 {sec.breadths.map((B) => (
-                  <th key={B} className="border border-neutral-700 px-2 py-1.5 text-center">
+                  <th key={B} className="border border-neutral-700 px-2 py-1 text-center">
                     {B}
                   </th>
                 ))}
-                <th className="border border-green-900 bg-green-800 px-2 py-1.5 text-center [print-color-adjust:exact]">CFT</th>
               </tr>
             </thead>
             <tbody>
               {sec.lengths.map((L) => {
-                const rowCft = roundCft(sec.breadths.reduce((s, B) => s + cellCft(L, B, T, sec.count.get(`${L}|${B}`) ?? 0), 0))
+                const rowCft = roundCft(sec.breadths.reduce((s, B) => s + cellCft(L, B, sec.T, sec.count.get(`${L}|${B}`) ?? 0), 0))
                 return (
                   <tr key={L}>
                     <td className="border border-neutral-300 px-2 py-1.5 text-center font-medium">{L}</td>
@@ -137,7 +152,7 @@ function WoodTally({ lines }: { lines: LineData[] }) {
               <tr className="bg-neutral-50 font-semibold [print-color-adjust:exact]">
                 <td className="border border-neutral-300 px-2 py-1.5 text-center">TOTAL</td>
                 {sec.breadths.map((B) => {
-                  const colCft = roundCft(sec.lengths.reduce((s, L) => s + cellCft(L, B, T, sec.count.get(`${L}|${B}`) ?? 0), 0))
+                  const colCft = roundCft(sec.lengths.reduce((s, L) => s + cellCft(L, B, sec.T, sec.count.get(`${L}|${B}`) ?? 0), 0))
                   return (
                     <td key={B} className="border border-neutral-300 px-2 py-1.5 text-center tabular-nums text-blue-700">
                       {colCft || ''}

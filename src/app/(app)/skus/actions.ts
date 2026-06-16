@@ -15,6 +15,7 @@ export type SkuPayload = {
   description: string | null
   remark: string | null
   wood: {
+    wood_name: string | null
     description: string | null
     length: number | null
     thickness: number | null
@@ -52,7 +53,7 @@ export type SkuPayload = {
 /** Inserts the material component rows for a SKU. Returns an error message or null. */
 async function insertComponents(supabase: DB, skuId: string, payload: SkuPayload): Promise<string | null> {
   const wood = payload.wood
-    .filter((w) => w.description || w.length || w.thickness || w.breadth || w.quantity)
+    .filter((w) => w.wood_name || w.description || w.length || w.thickness || w.breadth || w.quantity)
     .map((w, i) => ({ sku_id: skuId, ...w, position: i }))
   if (wood.length) {
     const { error } = await supabase.from('wood_components').insert(wood)

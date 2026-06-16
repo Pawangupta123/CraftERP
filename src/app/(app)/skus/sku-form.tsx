@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
-type WoodRow = { description: string; length: string; thickness: string; breadth: string; quantity: string }
+type WoodRow = { wood_name: string; description: string; length: string; thickness: string; breadth: string; quantity: string }
 type IronRow = { description: string; section: string; length: string; width: string; remark: string; photos: PhotoItem[] }
 type HardwareRow = { name: string; description: string; quantity: string; unit: string }
 type PackagingMaterialRow = { material: string; specification: string; quantity: string }
@@ -36,7 +36,7 @@ export type SkuInitial = {
   cartons: CartonRow[]
 }
 
-const emptyWood = (): WoodRow => ({ description: '', length: '', thickness: '', breadth: '', quantity: '' })
+const emptyWood = (): WoodRow => ({ wood_name: '', description: '', length: '', thickness: '', breadth: '', quantity: '' })
 const emptyIron = (): IronRow => ({ description: '', section: '', length: '', width: '', remark: '', photos: [] })
 const emptyHardware = (): HardwareRow => ({ name: '', description: '', quantity: '', unit: '' })
 const emptyPackagingMaterial = (): PackagingMaterialRow => ({ material: '', specification: '', quantity: '' })
@@ -179,6 +179,7 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
       description: str(description),
       remark: str(remark),
       wood: wood.map((w) => ({
+        wood_name: str(w.wood_name),
         description: str(w.description),
         length: num(w.length),
         thickness: num(w.thickness),
@@ -278,10 +279,11 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
       <Card>
         <CardHeader>
           <CardTitle>Wood</CardTitle>
-          <CardDescription>Per-piece dimensions. Add a row for each different size.</CardDescription>
+          <CardDescription>Wood name (e.g. Mango) + per-piece dimensions. Add a row for each size. Length in ft, width/thickness in inches.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="hidden px-1 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_5rem_5rem_5rem_5rem_2.25rem] sm:gap-2">
+          <div className="hidden px-1 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[minmax(0,8rem)_minmax(0,1fr)_5rem_5rem_5rem_5rem_2.25rem] sm:gap-2">
+            <span>Wood</span>
             <span>Description</span>
             <span>Length</span>
             <span>Thickness</span>
@@ -290,17 +292,28 @@ export function SkuForm({ initial }: { initial?: SkuInitial }) {
             <span />
           </div>
           {wood.map((row, i) => (
-            <div key={i} className={`${ROW_GRID} sm:grid-cols-[minmax(0,1fr)_5rem_5rem_5rem_5rem_2.25rem] sm:gap-2`}>
+            <div key={i} className={`${ROW_GRID} sm:grid-cols-[minmax(0,8rem)_minmax(0,1fr)_5rem_5rem_5rem_5rem_2.25rem] sm:gap-2`}>
+              <Input aria-label="Wood name" list="wood-names" placeholder="e.g. Mango" value={row.wood_name} onChange={(e) => setWood(wood.map((r, idx) => (idx === i ? { ...r, wood_name: e.target.value } : r)))} className="col-span-2 h-9 sm:col-span-1" />
               <Input aria-label="Description" placeholder="Description" value={row.description} onChange={(e) => setWood(wood.map((r, idx) => (idx === i ? { ...r, description: e.target.value } : r)))} className="col-span-2 h-9 sm:col-span-1" />
-              <Input aria-label="Length" placeholder="L" inputMode="decimal" value={row.length} onChange={(e) => setWood(wood.map((r, idx) => (idx === i ? { ...r, length: e.target.value } : r)))} className="h-9" />
-              <Input aria-label="Thickness" placeholder="T" inputMode="decimal" value={row.thickness} onChange={(e) => setWood(wood.map((r, idx) => (idx === i ? { ...r, thickness: e.target.value } : r)))} className="h-9" />
-              <Input aria-label="Breadth" placeholder="B" inputMode="decimal" value={row.breadth} onChange={(e) => setWood(wood.map((r, idx) => (idx === i ? { ...r, breadth: e.target.value } : r)))} className="h-9" />
+              <Input aria-label="Length" placeholder="L (ft)" inputMode="decimal" value={row.length} onChange={(e) => setWood(wood.map((r, idx) => (idx === i ? { ...r, length: e.target.value } : r)))} className="h-9" />
+              <Input aria-label="Thickness" placeholder="T (in)" inputMode="decimal" value={row.thickness} onChange={(e) => setWood(wood.map((r, idx) => (idx === i ? { ...r, thickness: e.target.value } : r)))} className="h-9" />
+              <Input aria-label="Breadth" placeholder="W (in)" inputMode="decimal" value={row.breadth} onChange={(e) => setWood(wood.map((r, idx) => (idx === i ? { ...r, breadth: e.target.value } : r)))} className="h-9" />
               <Input aria-label="Quantity" placeholder="Qty" inputMode="decimal" value={row.quantity} onChange={(e) => setWood(wood.map((r, idx) => (idx === i ? { ...r, quantity: e.target.value } : r)))} className="h-9" />
               <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove row" onClick={() => setWood(wood.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
                 <Trash2 className="size-4" />
               </Button>
             </div>
           ))}
+          <datalist id="wood-names">
+            <option value="Mango" />
+            <option value="Sheesham" />
+            <option value="Teak" />
+            <option value="Acacia" />
+            <option value="Babool" />
+            <option value="Pine" />
+            <option value="Mango Wood" />
+            <option value="Rosewood" />
+          </datalist>
           <Button type="button" variant="outline" size="sm" onClick={() => setWood([...wood, emptyWood()])}>
             <Plus className="size-4" /> Add wood row
           </Button>

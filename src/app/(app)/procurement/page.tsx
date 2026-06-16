@@ -21,7 +21,7 @@ export default async function ProcurementPage() {
   const skuIds = [...new Set(lineItems.map((l) => l.sku_id))]
   const [skusRes, woodRes, ironRes, hwRes, pkgRes] = await Promise.all([
     supabase.from('skus').select('id, sku_no, name, cbm').in('id', skuIds),
-    supabase.from('wood_components').select('sku_id, description, length, thickness, breadth, quantity, position').in('sku_id', skuIds).order('position'),
+    supabase.from('wood_components').select('sku_id, wood_name, description, length, thickness, breadth, quantity, position').in('sku_id', skuIds).order('position'),
     supabase.from('iron_components').select('sku_id, description, section, length, width, remark, picture_urls, position').in('sku_id', skuIds).order('position'),
     supabase.from('hardware_components').select('sku_id, name, description, quantity, unit, position').in('sku_id', skuIds).order('position'),
     supabase.from('packaging_materials').select('sku_id, material, specification, quantity, position').in('sku_id', skuIds).order('position'),
@@ -60,6 +60,7 @@ export default async function ProcurementPage() {
         skuName: sku?.name ?? '—',
         qty: l.quantity,
         wood: (woodBy.get(l.sku_id) ?? []).map((w) => ({
+          wood_name: w.wood_name,
           description: w.description,
           length: w.length,
           thickness: w.thickness,

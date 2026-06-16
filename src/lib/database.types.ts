@@ -619,6 +619,7 @@ export type Database = {
           quantity: number | null
           sku_id: string
           thickness: number | null
+          wood_name: string | null
         }
         Insert: {
           breadth?: number | null
@@ -629,6 +630,7 @@ export type Database = {
           quantity?: number | null
           sku_id: string
           thickness?: number | null
+          wood_name?: string | null
         }
         Update: {
           breadth?: number | null
@@ -639,6 +641,7 @@ export type Database = {
           quantity?: number | null
           sku_id?: string
           thickness?: number | null
+          wood_name?: string | null
         }
         Relationships: [
           {
