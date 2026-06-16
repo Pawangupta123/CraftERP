@@ -8,10 +8,11 @@ export const metadata: Metadata = { title: 'Procurement · JimiFern' }
 export default async function ProcurementPage() {
   const supabase = await createClient()
 
-  const [buyersRes, posRes, liRes] = await Promise.all([
+  const [buyersRes, posRes, liRes, companyRes] = await Promise.all([
     supabase.from('buyers').select('id, name').order('name'),
     supabase.from('purchase_orders').select('id, po_no, buyer_id, created_at').order('created_at', { ascending: false }),
     supabase.from('po_line_items').select('id, po_id, sku_id, quantity, position').order('position'),
+    supabase.from('company_settings').select('*').limit(1).maybeSingle(),
   ])
   const buyers = buyersRes.data ?? []
   const pos = posRes.data ?? []
@@ -100,5 +101,5 @@ export default async function ProcurementPage() {
   const buyerIdsWithPos = new Set(poData.map((p) => p.buyer_id))
   const activeBuyers = buyers.filter((b) => buyerIdsWithPos.has(b.id))
 
-  return <ProcurementClient buyers={activeBuyers} pos={poData} />
+  return <ProcurementClient buyers={activeBuyers} pos={poData} company={companyRes.data} />
 }

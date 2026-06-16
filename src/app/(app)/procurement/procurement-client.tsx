@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Printer } from 'lucide-react'
 import { CFT_DIVISOR, DEFAULT_CFT_UNIT, roundCft } from '@/lib/cft'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import type { Database } from '@/lib/database.types'
 
 export type LineData = {
   skuNo: string
@@ -33,6 +34,7 @@ export type POData = {
 }
 
 type BuyerOpt = { id: string; name: string }
+type Company = Database['public']['Tables']['company_settings']['Row'] | null
 type ReportType = 'wood' | 'iron' | 'hardware' | 'packaging'
 
 const REPORTS: { key: ReportType; label: string }[] = [
@@ -235,7 +237,15 @@ function Empty({ label }: { label: string }) {
   return <p className="py-6 text-center text-sm text-neutral-500">No {label} components on this PO.</p>
 }
 
-export function ProcurementClient({ buyers, pos }: { buyers: BuyerOpt[]; pos: POData[] }) {
+function SectionHeader({ children }: { children: ReactNode }) {
+  return (
+    <div className="border border-neutral-300 bg-neutral-100 px-3 py-1.5 text-xs font-bold tracking-wide text-neutral-700 uppercase [print-color-adjust:exact]">
+      {children}
+    </div>
+  )
+}
+
+export function ProcurementClient({ buyers, pos, company }: { buyers: BuyerOpt[]; pos: POData[]; company: Company }) {
   const [buyerId, setBuyerId] = useState('')
   const [poId, setPoId] = useState('')
   const [report, setReport] = useState<ReportType>('wood')
@@ -243,6 +253,9 @@ export function ProcurementClient({ buyers, pos }: { buyers: BuyerOpt[]; pos: PO
   const buyerPos = pos.filter((p) => p.buyer_id === buyerId)
   const po = pos.find((p) => p.id === poId)
   const reportLabel = REPORTS.find((r) => r.key === report)?.label ?? ''
+  const sellerLine = [company?.address, company?.city, company?.gstin ? `GSTIN: ${company.gstin}` : null]
+    .filter(Boolean)
+    .join('  ·  ')
 
   return (
     <div className="space-y-6">
@@ -324,38 +337,65 @@ export function ProcurementClient({ buyers, pos }: { buyers: BuyerOpt[]; pos: PO
         ) : null}
       </div>
 
-      {/* Report document (shown on screen + print) */}
+      {/* Report document — same challan/invoice format (shown on screen + print) */}
       {po ? (
         <div className="rounded-xl border bg-white p-5 text-black [-webkit-print-color-adjust:exact] [print-color-adjust:exact] print:rounded-none print:border-0 print:p-0">
-          <div className="mb-4 flex items-start justify-between border-b-2 border-black pb-3">
-            <div>
-              <p className="text-[10px] tracking-widest text-neutral-500 uppercase">{reportLabel} Report — Procurement</p>
-              <h2 className="font-heading text-2xl font-bold">{po.po_no}</h2>
+          <div className="border border-neutral-400 p-5">
+            {/* Logo header */}
+            <div className="flex flex-col items-center gap-1.5 border-b-2 border-black pb-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-mark.png" alt={company?.name ?? 'JimiFern'} className="h-14 w-auto" />
+              {sellerLine ? <p className="text-[11px] text-neutral-600">{sellerLine}</p> : null}
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-mark.png" alt="JimiFern" className="h-10 w-auto" />
+
+            {/* Title */}
+            <div className="flex flex-col items-center py-3">
+              <h1 className="font-heading text-3xl font-extrabold tracking-tight">{reportLabel.toUpperCase()} CHALLAN</h1>
+              <div className="mt-1.5 flex items-center gap-2 text-neutral-500">
+                <span className="h-px w-8 bg-neutral-400" />
+                <span className="text-[11px] font-semibold tracking-[0.25em]">PROCUREMENT</span>
+                <span className="h-px w-8 bg-neutral-400" />
+              </div>
+            </div>
+
+            {/* PO number */}
+            <div className="mb-4 flex items-center gap-4 rounded-xl border-2 border-neutral-300 px-6 py-2.5">
+              <span className="text-base font-bold tracking-tight whitespace-nowrap text-neutral-700">P.O. NUMBER:</span>
+              <span className="font-heading text-3xl font-extrabold tracking-tight">{po.po_no}</span>
+            </div>
+
+            {/* Details */}
+            <SectionHeader>Order Details</SectionHeader>
+            <div className="mb-4 grid grid-cols-2 gap-x-10 gap-y-2 border border-t-0 border-neutral-300 p-4 text-sm">
+              <div>
+                <span className="text-neutral-500">Buyer: </span>
+                <span className="font-medium">{po.buyer_name}</span>
+              </div>
+              <div>
+                <span className="text-neutral-500">Date: </span>
+                {po.date ?? '—'}
+              </div>
+              <div>
+                <span className="text-neutral-500">Report: </span>
+                <span className="font-medium">{reportLabel}</span>
+              </div>
+              <div>
+                <span className="text-neutral-500">PO Total CBM: </span>
+                <span className="font-medium tabular-nums">{po.totalCbm}</span>
+              </div>
+            </div>
+
+            {/* Measurement table */}
+            <SectionHeader>{reportLabel} — master measurement (× order qty)</SectionHeader>
+            <ReportTable type={report} lines={po.lines} />
+
+            {/* Footer */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 border-t border-neutral-300 pt-3 text-xs text-neutral-600">
+              {company?.website ? <span>{company.website}</span> : null}
+              {company?.email ? <span>{company.email}</span> : null}
+              {company?.phone ? <span>{company.phone}</span> : null}
+            </div>
           </div>
-
-          <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 text-xs">
-            <div>
-              <span className="text-neutral-500">Buyer: </span>
-              <span className="font-medium">{po.buyer_name}</span>
-            </div>
-            <div>
-              <span className="text-neutral-500">Date: </span>
-              {po.date ?? '—'}
-            </div>
-            <div>
-              <span className="text-neutral-500">PO Total CBM: </span>
-              <span className="font-medium tabular-nums">{po.totalCbm}</span>
-            </div>
-          </div>
-
-          <ReportTable type={report} lines={po.lines} />
-
-          <p className="mt-3 text-[10px] text-neutral-500">
-            Quantities are per ordered piece × the PO order quantity. Dimensions as entered on the SKU.
-          </p>
         </div>
       ) : (
         <div className="rounded-xl border bg-card py-16 text-center text-sm text-muted-foreground print:hidden">
