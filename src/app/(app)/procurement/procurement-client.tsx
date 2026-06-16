@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { Printer } from 'lucide-react'
-import { CFT_DIVISOR, DEFAULT_CFT_UNIT, roundCft } from '@/lib/cft'
+import { roundCft } from '@/lib/cft'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import {
@@ -46,68 +46,125 @@ const REPORTS: { key: ReportType; label: string }[] = [
 
 const n = (v: number | null) => (v === null || v === undefined ? '—' : v)
 
-// CFT (cubic feet) of timber: (L × T × B in inches) ÷ 1728 per piece, × pieces × order qty.
-const CFT_DIV = CFT_DIVISOR[DEFAULT_CFT_UNIT]
-function woodRowCft(
-  w: { length: number | null; thickness: number | null; breadth: number | null; quantity: number | null },
-  orderQty: number,
-): number {
-  return roundCft((((w.length ?? 0) * (w.thickness ?? 0) * (w.breadth ?? 0) * (w.quantity ?? 0)) / CFT_DIV) * orderQty)
-}
+// CFT for timber: Length(ft) × Width(in) × Thickness(in) × count ÷ 144.
+const cellCft = (L: number, B: number, T: number, count: number) => (L * B * T * count) / 144
 
 const TH = 'border border-neutral-300 px-2 py-1.5 text-left font-semibold'
 const TD = 'border border-neutral-300 px-2 py-1.5 align-top'
 
+function WoodTally({ lines }: { lines: LineData[] }) {
+  // Pivot wood across all SKUs (count = qty/pc × order qty), grouped by thickness (section),
+  // then a length (rows) × width (columns) grid, with CFT per row / column / section.
+  const sections = new Map<number, { lengths: number[]; breadths: number[]; count: Map<string, number> }>()
+  for (const l of lines) {
+    for (const w of l.wood) {
+      const T = w.thickness ?? 0
+      const L = w.length ?? 0
+      const B = w.breadth ?? 0
+      const c = (w.quantity ?? 0) * l.qty
+      if (!c && !L && !B) continue
+      let sec = sections.get(T)
+      if (!sec) {
+        sec = { lengths: [], breadths: [], count: new Map() }
+        sections.set(T, sec)
+      }
+      const key = `${L}|${B}`
+      sec.count.set(key, (sec.count.get(key) ?? 0) + c)
+      if (!sec.lengths.includes(L)) sec.lengths.push(L)
+      if (!sec.breadths.includes(B)) sec.breadths.push(B)
+    }
+  }
+  if (sections.size === 0) return <Empty label="wood" />
+
+  const secList = [...sections.entries()].sort((a, b) => a[0] - b[0])
+  let grand = 0
+  const blocks = secList.map(([T, sec], si) => {
+    sec.lengths.sort((a, b) => a - b)
+    sec.breadths.sort((a, b) => a - b)
+    const sectionCft = roundCft(
+      [...sec.count.entries()].reduce((s, [k, c]) => {
+        const [Ls, Bs] = k.split('|')
+        return s + cellCft(Number(Ls), Number(Bs), T, c)
+      }, 0),
+    )
+    grand += sectionCft
+    return { T, sec, si, sectionCft }
+  })
+
+  return (
+    <div className="space-y-4">
+      {blocks.map(({ T, sec, si, sectionCft }) => (
+        <div key={si}>
+          <div className="mb-1 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs font-semibold [print-color-adjust:exact]">Section {si + 1}</span>
+              <span className="font-semibold">Thickness: {T}&quot;</span>
+            </div>
+            <span className="text-sm font-semibold text-green-800">Section CFT: {sectionCft}</span>
+          </div>
+          <table className="w-full border-collapse text-xs">
+            <thead>
+              <tr className="bg-neutral-800 text-white [print-color-adjust:exact]">
+                <th className="border border-neutral-700 px-2 py-1.5 text-left">Length</th>
+                {sec.breadths.map((B) => (
+                  <th key={B} className="border border-neutral-700 px-2 py-1.5 text-center">
+                    {B}
+                  </th>
+                ))}
+                <th className="border border-green-900 bg-green-800 px-2 py-1.5 text-center [print-color-adjust:exact]">CFT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sec.lengths.map((L) => {
+                const rowCft = roundCft(sec.breadths.reduce((s, B) => s + cellCft(L, B, T, sec.count.get(`${L}|${B}`) ?? 0), 0))
+                return (
+                  <tr key={L}>
+                    <td className="border border-neutral-300 px-2 py-1.5 text-center font-medium">{L}</td>
+                    {sec.breadths.map((B) => {
+                      const c = sec.count.get(`${L}|${B}`) ?? 0
+                      return (
+                        <td key={B} className="border border-neutral-300 px-2 py-1.5 text-center tabular-nums">
+                          {c || ''}
+                        </td>
+                      )
+                    })}
+                    <td className="border border-neutral-300 bg-green-50 px-2 py-1.5 text-center font-semibold tabular-nums text-green-900 [print-color-adjust:exact]">
+                      {rowCft}
+                    </td>
+                  </tr>
+                )
+              })}
+              <tr className="bg-neutral-50 font-semibold [print-color-adjust:exact]">
+                <td className="border border-neutral-300 px-2 py-1.5 text-center">TOTAL</td>
+                {sec.breadths.map((B) => {
+                  const colCft = roundCft(sec.lengths.reduce((s, L) => s + cellCft(L, B, T, sec.count.get(`${L}|${B}`) ?? 0), 0))
+                  return (
+                    <td key={B} className="border border-neutral-300 px-2 py-1.5 text-center tabular-nums text-blue-700">
+                      {colCft || ''}
+                    </td>
+                  )
+                })}
+                <td className="border border-neutral-300 bg-green-100 px-2 py-1.5 text-center tabular-nums text-green-900 [print-color-adjust:exact]">
+                  {sectionCft}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ))}
+      <div className="flex justify-end">
+        <div className="rounded-lg border-2 border-neutral-800 px-5 py-2 text-center">
+          <p className="text-[10px] tracking-wide text-neutral-500 uppercase">Grand Total</p>
+          <p className="font-heading text-2xl font-bold">{roundCft(grand)} CFT</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ReportTable({ type, lines }: { type: ReportType; lines: LineData[] }) {
   if (type === 'wood') {
-    const rows = lines.flatMap((l) => l.wood.map((w) => ({ l, w })))
-    if (rows.length === 0) return <Empty label="wood" />
-    const totalCft = roundCft(rows.reduce((s, { l, w }) => s + woodRowCft(w, l.qty), 0))
-    return (
-      <table className="w-full border-collapse text-xs">
-        <thead>
-          <tr className="bg-neutral-100 [print-color-adjust:exact]">
-            <th className={TH}>#</th>
-            <th className={TH}>Item (SKU)</th>
-            <th className={TH}>Description</th>
-            <th className={`${TH} text-right`}>L</th>
-            <th className={`${TH} text-right`}>T</th>
-            <th className={`${TH} text-right`}>B</th>
-            <th className={`${TH} text-right`}>Qty/pc</th>
-            <th className={`${TH} text-right`}>Order qty</th>
-            <th className={`${TH} text-right`}>Total pcs</th>
-            <th className={`${TH} text-right`}>CFT</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ l, w }, i) => (
-            <tr key={i} className="break-inside-avoid">
-              <td className={`${TD} tabular-nums`}>{i + 1}</td>
-              <td className={TD}>
-                <div className="font-medium">{l.skuName}</div>
-                <div className="text-neutral-500">{l.skuNo}</div>
-              </td>
-              <td className={TD}>{w.description ?? '—'}</td>
-              <td className={`${TD} text-right tabular-nums`}>{n(w.length)}</td>
-              <td className={`${TD} text-right tabular-nums`}>{n(w.thickness)}</td>
-              <td className={`${TD} text-right tabular-nums`}>{n(w.breadth)}</td>
-              <td className={`${TD} text-right tabular-nums`}>{n(w.quantity)}</td>
-              <td className={`${TD} text-right tabular-nums`}>{l.qty}</td>
-              <td className={`${TD} text-right font-semibold tabular-nums`}>{(w.quantity ?? 0) * l.qty}</td>
-              <td className={`${TD} text-right tabular-nums`}>{woodRowCft(w, l.qty)}</td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="bg-neutral-50 font-semibold [print-color-adjust:exact]">
-            <td className={TD} colSpan={9}>
-              Total CFT (inches basis)
-            </td>
-            <td className={`${TD} text-right tabular-nums`}>{totalCft}</td>
-          </tr>
-        </tfoot>
-      </table>
-    )
+    return <WoodTally lines={lines} />
   }
 
   if (type === 'iron') {
