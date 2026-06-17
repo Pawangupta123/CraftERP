@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Printer } from 'lucide-react'
 import { roundCft } from '@/lib/cft'
 import { Button } from '@/components/ui/button'
@@ -317,6 +317,41 @@ function SectionHeader({ children }: { children: ReactNode }) {
   )
 }
 
+/** Editable challan field (label + underlined input the user fills; blank = a line to write on). */
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+}) {
+  return (
+    <div>
+      <p className="mb-0.5 text-xs text-neutral-500">{label}</p>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full border-b border-neutral-200 bg-transparent pb-0.5 text-sm font-semibold text-black outline-none focus:border-black"
+      />
+    </div>
+  )
+}
+
+/** Read-only auto field (derived from the data). */
+function AutoField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="mb-0.5 text-xs text-neutral-500">{label}</p>
+      <p className="pb-0.5 text-sm font-semibold">{value || '—'}</p>
+    </div>
+  )
+}
+
 export function ProcurementClient({ buyers, pos, company }: { buyers: BuyerOpt[]; pos: POData[]; company: Company }) {
   const [buyerId, setBuyerId] = useState('')
   const [poId, setPoId] = useState('')
@@ -328,6 +363,37 @@ export function ProcurementClient({ buyers, pos, company }: { buyers: BuyerOpt[]
   const sellerLine = [company?.address, company?.city, company?.gstin ? `GSTIN: ${company.gstin}` : null]
     .filter(Boolean)
     .join('  ·  ')
+
+  // Challan header fields the user fills in (transient — for this print).
+  const [challanNo, setChallanNo] = useState('')
+  const [challanDate, setChallanDate] = useState('')
+  const [vehicleNo, setVehicleNo] = useState('')
+  const [billNo, setBillNo] = useState('')
+  const [partyName, setPartyName] = useState('')
+  const [partyPhone, setPartyPhone] = useState('')
+  const [category, setCategory] = useState('TIMBER')
+  const [woodType, setWoodType] = useState('')
+
+  // Sensible defaults when a PO is picked (user can overwrite).
+  useEffect(() => {
+    if (!po) return
+    setPartyName(po.buyer_name)
+    setChallanDate(po.date ?? '')
+    const woods = new Set<string>()
+    for (const l of po.lines) for (const w of l.wood) if (w.wood_name?.trim()) woods.add(w.wood_name.trim())
+    setWoodType([...woods].join(', '))
+  }, [po])
+
+  // Total tally sections (distinct wood name + thickness) for the wood report.
+  const woodSecKeys = new Set<string>()
+  if (po) {
+    for (const l of po.lines) {
+      for (const w of l.wood) {
+        if (w.quantity || w.length || w.breadth) woodSecKeys.add(`${w.wood_name?.trim() || 'Wood'}|${w.thickness ?? 0}`)
+      }
+    }
+  }
+  const sectionCount = woodSecKeys.size
 
   return (
     <div className="space-y-6">
@@ -413,52 +479,78 @@ export function ProcurementClient({ buyers, pos, company }: { buyers: BuyerOpt[]
       {po ? (
         <div className="rounded-xl border bg-white p-5 text-black [-webkit-print-color-adjust:exact] [print-color-adjust:exact] print:rounded-none print:border-0 print:p-0">
           <div className="border border-neutral-400 p-5">
-            {/* Logo header */}
-            <div className="flex flex-col items-center gap-1.5 border-b-2 border-black pb-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-mark.png" alt={company?.name ?? 'JimiFern'} className="h-14 w-auto" />
-              {sellerLine ? <p className="text-[11px] text-neutral-600">{sellerLine}</p> : null}
-            </div>
-
-            {/* Title */}
-            <div className="flex flex-col items-center py-3">
-              <h1 className="font-heading text-3xl font-extrabold tracking-tight">{reportLabel.toUpperCase()} CHALLAN</h1>
-              <div className="mt-1.5 flex items-center gap-2 text-neutral-500">
-                <span className="h-px w-8 bg-neutral-400" />
-                <span className="text-[11px] font-semibold tracking-[0.25em]">PROCUREMENT</span>
-                <span className="h-px w-8 bg-neutral-400" />
+            {/* Company + Challan No (NIRVANA-style challan header) */}
+            <div className="flex items-start justify-between gap-4 border-b-2 border-black pb-3">
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo-mark.png" alt={company?.name ?? 'JimiFern'} className="h-10 w-auto" />
+                <div>
+                  <h2 className="font-heading text-xl font-extrabold tracking-tight">{company?.name ?? 'JimiFern'}</h2>
+                  <p className="text-[11px] tracking-wide text-neutral-500 uppercase">
+                    {report === 'wood' ? 'Timber stock & dispatch' : `${reportLabel} procurement`}
+                  </p>
+                  {sellerLine ? <p className="text-[10px] text-neutral-500">{sellerLine}</p> : null}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-[11px] tracking-wide text-neutral-500 uppercase">Challan No.</p>
+                <div className="flex items-baseline justify-end">
+                  <span className="text-2xl font-extrabold text-neutral-400">#</span>
+                  <input
+                    value={challanNo}
+                    onChange={(e) => setChallanNo(e.target.value)}
+                    placeholder="000"
+                    className="w-24 border-b border-neutral-200 bg-transparent text-right font-heading text-2xl font-extrabold tracking-tight outline-none placeholder:text-neutral-300 focus:border-black"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* PO number */}
-            <div className="mb-4 flex items-center gap-4 rounded-xl border-2 border-neutral-300 px-6 py-2.5">
-              <span className="text-base font-bold tracking-tight whitespace-nowrap text-neutral-700">P.O. NUMBER:</span>
-              <span className="font-heading text-3xl font-extrabold tracking-tight">{po.po_no}</span>
+            {/* Editable challan details — user fills these (vehicle, bill, party…) */}
+            <div className="grid grid-cols-3 gap-x-8 gap-y-3 py-4">
+              <Field label="Date" value={challanDate} onChange={setChallanDate} placeholder="DD / MM / YYYY" />
+              <Field label="Vehicle Number" value={vehicleNo} onChange={setVehicleNo} placeholder="e.g. RJ19 GJ 8140" />
+              <div>
+                <p className="mb-0.5 text-xs text-neutral-500">Receiver / Party</p>
+                <input
+                  value={partyName}
+                  onChange={(e) => setPartyName(e.target.value)}
+                  placeholder="Name"
+                  className="w-full border-b border-neutral-200 bg-transparent pb-0.5 text-sm font-semibold text-black outline-none focus:border-black"
+                />
+                <input
+                  value={partyPhone}
+                  onChange={(e) => setPartyPhone(e.target.value)}
+                  placeholder="Phone"
+                  className="mt-1 w-full border-b border-neutral-200 bg-transparent pb-0.5 text-xs text-neutral-600 outline-none focus:border-black"
+                />
+              </div>
+
+              {report === 'wood' ? (
+                <>
+                  <Field label="Category" value={category} onChange={setCategory} placeholder="TIMBER" />
+                  <Field label="Wood Type" value={woodType} onChange={setWoodType} placeholder="e.g. Mango, Sheesham" />
+                  <AutoField label="Total Sections" value={String(sectionCount)} />
+                </>
+              ) : (
+                <>
+                  <AutoField label="Material" value={reportLabel} />
+                  <AutoField label="PO Total CBM" value={String(po.totalCbm)} />
+                  <div />
+                </>
+              )}
+
+              <Field label="Bill No." value={billNo} onChange={setBillNo} placeholder="" />
+              <AutoField label="P.O. No" value={po.po_no} />
+              {report === 'wood' ? <AutoField label="PO Total CBM" value={String(po.totalCbm)} /> : <div />}
             </div>
 
-            {/* Details */}
-            <SectionHeader>Order Details</SectionHeader>
-            <div className="mb-4 grid grid-cols-2 gap-x-10 gap-y-2 border border-t-0 border-neutral-300 p-4 text-sm">
-              <div>
-                <span className="text-neutral-500">Buyer: </span>
-                <span className="font-medium">{po.buyer_name}</span>
-              </div>
-              <div>
-                <span className="text-neutral-500">Date: </span>
-                {po.date ?? '—'}
-              </div>
-              <div>
-                <span className="text-neutral-500">Report: </span>
-                <span className="font-medium">{reportLabel}</span>
-              </div>
-              <div>
-                <span className="text-neutral-500">PO Total CBM: </span>
-                <span className="font-medium tabular-nums">{po.totalCbm}</span>
-              </div>
-            </div>
+            <div className="mb-4 border-b-2 border-black" />
 
             {/* Measurement table */}
-            <SectionHeader>{reportLabel} — master measurement (× order qty)</SectionHeader>
+            {report !== 'wood' ? (
+              <SectionHeader>{reportLabel} — master measurement (× order qty)</SectionHeader>
+            ) : null}
             <ReportTable type={report} lines={po.lines} />
 
             {/* Footer */}
