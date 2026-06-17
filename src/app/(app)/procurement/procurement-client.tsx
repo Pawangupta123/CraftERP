@@ -485,9 +485,9 @@ export function ProcurementClient({ buyers, pos, company }: { buyers: BuyerOpt[]
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo-mark.png" alt={company?.name ?? 'JimiFern'} className="h-9 w-auto" />
                 <div className="border-l border-neutral-300 pl-3">
-                  <p className="text-[11px] font-semibold tracking-wide text-neutral-600 uppercase">
+                  {/* <p className="text-[11px] font-semibold tracking-wide text-neutral-600 uppercase">
                     {report === 'wood' ? 'Timber stock & dispatch' : `${reportLabel} procurement`}
-                  </p>
+                  </p> */}
                   {sellerLine ? <p className="text-[10px] text-neutral-500">{sellerLine}</p> : null}
                 </div>
               </div>
