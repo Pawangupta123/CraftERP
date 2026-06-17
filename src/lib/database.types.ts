@@ -543,6 +543,8 @@ export type Database = {
           status: string | null
           supplier: string | null
           unit: string | null
+          price: number | null
+          vendors: Json
         }
         Insert: {
           created_at?: string
@@ -555,6 +557,8 @@ export type Database = {
           status?: string | null
           supplier?: string | null
           unit?: string | null
+          price?: number | null
+          vendors?: Json
         }
         Update: {
           created_at?: string
@@ -567,6 +571,8 @@ export type Database = {
           status?: string | null
           supplier?: string | null
           unit?: string | null
+          price?: number | null
+          vendors?: Json
         }
         Relationships: []
       }

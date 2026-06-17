@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Plus, Save, Trash2 } from 'lucide-react'
@@ -10,29 +10,29 @@ import type { Database } from '@/lib/database.types'
 
 type Entry = Database['public']['Tables']['sourcing_entries']['Row']
 
-type Row = {
-  id?: string
-  item: string
-  supplier: string
-  quantity: string
-  unit: string
-  rate: string
-  status: string
-  date: string
-  remark: string
-}
+const VENDOR_COUNT = 8
+type VendorCell = { name: string; price: string }
+type Row = { id?: string; item: string; price: string; unit: string; vendors: VendorCell[]; remark: string }
 
-const emptyRow = (): Row => ({ item: '', supplier: '', quantity: '', unit: '', rate: '', status: '', date: '', remark: '' })
+const emptyVendors = (): VendorCell[] => Array.from({ length: VENDOR_COUNT }, () => ({ name: '', price: '' }))
+const emptyRow = (): Row => ({ item: '', price: '', unit: '', vendors: emptyVendors(), remark: '' })
+
+function padVendors(v: Entry['vendors']): VendorCell[] {
+  const arr = Array.isArray(v) ? v : []
+  const out: VendorCell[] = arr.slice(0, VENDOR_COUNT).map((x) => {
+    const o = (x ?? {}) as { name?: unknown; price?: unknown }
+    return { name: o.name != null ? String(o.name) : '', price: o.price != null ? String(o.price) : '' }
+  })
+  while (out.length < VENDOR_COUNT) out.push({ name: '', price: '' })
+  return out
+}
 
 const toRow = (e: Entry): Row => ({
   id: e.id,
   item: e.item ?? '',
-  supplier: e.supplier ?? '',
-  quantity: e.quantity?.toString() ?? '',
+  price: e.price?.toString() ?? '',
   unit: e.unit ?? '',
-  rate: e.rate?.toString() ?? '',
-  status: e.status ?? '',
-  date: e.date ?? '',
+  vendors: padVendors(e.vendors),
   remark: e.remark ?? '',
 })
 
@@ -51,8 +51,15 @@ export function SourcingGrid({ initial }: { initial: Entry[] }) {
   const [rows, setRows] = useState<Row[]>(initial.length ? initial.map(toRow) : [emptyRow()])
   const [saving, setSaving] = useState(false)
 
-  function set(i: number, field: keyof Row, value: string) {
+  function setField(i: number, field: 'item' | 'price' | 'unit' | 'remark', value: string) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)))
+  }
+  function setVendor(i: number, vi: number, field: 'name' | 'price', value: string) {
+    setRows((prev) =>
+      prev.map((r, idx) =>
+        idx === i ? { ...r, vendors: r.vendors.map((v, j) => (j === vi ? { ...v, [field]: value } : v)) } : r,
+      ),
+    )
   }
 
   async function save() {
@@ -60,13 +67,12 @@ export function SourcingGrid({ initial }: { initial: Entry[] }) {
     const payload: SourcingRowInput[] = rows.map((r) => ({
       id: r.id,
       item: str(r.item),
-      supplier: str(r.supplier),
-      quantity: num(r.quantity),
+      price: num(r.price),
       unit: str(r.unit),
-      rate: num(r.rate),
-      status: str(r.status),
-      date: r.date || null,
       remark: str(r.remark),
+      vendors: r.vendors
+        .filter((v) => v.name.trim() || v.price.trim())
+        .map((v) => ({ name: str(v.name), price: num(v.price) })),
     }))
     const res = await saveAllSourcing(payload)
     if (res.error) {
@@ -82,46 +88,53 @@ export function SourcingGrid({ initial }: { initial: Entry[] }) {
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto rounded-xl border bg-card">
-        <table className="w-full border-collapse text-sm">
+        <table className="border-collapse text-sm">
           <thead>
             <tr className="border-b bg-muted/50 text-left text-xs font-medium text-muted-foreground">
-              <th className="border-r px-2 py-2">Material / Item</th>
-              <th className="border-r px-2 py-2">Supplier</th>
-              <th className="border-r px-2 py-2">Quantity</th>
-              <th className="border-r px-2 py-2">Unit</th>
-              <th className="border-r px-2 py-2">Rate</th>
-              <th className="border-r px-2 py-2">Status</th>
-              <th className="border-r px-2 py-2">Date</th>
-              <th className="border-r px-2 py-2">Remark</th>
-              <th className="w-0 px-1 py-2" />
+              <th rowSpan={2} className="border-r px-2 py-2 align-bottom">Commodity</th>
+              <th rowSpan={2} className="border-r px-2 py-2 align-bottom">Price</th>
+              <th rowSpan={2} className="border-r px-2 py-2 align-bottom">Unit</th>
+              {Array.from({ length: VENDOR_COUNT }, (_, v) => (
+                <th key={v} colSpan={2} className="border-r border-l px-2 py-1 text-center">
+                  Vendor {v + 1}
+                </th>
+              ))}
+              <th rowSpan={2} className="border-r px-2 py-2 align-bottom">Remark</th>
+              <th rowSpan={2} className="w-0 px-1 py-2" />
+            </tr>
+            <tr className="border-b bg-muted/30 text-left text-[10px] font-medium text-muted-foreground">
+              {Array.from({ length: VENDOR_COUNT }, (_, v) => (
+                <Fragment key={v}>
+                  <th className="border-l px-2 py-1">Name</th>
+                  <th className="border-r px-2 py-1">Price</th>
+                </Fragment>
+              ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((row, i) => (
               <tr key={row.id ?? `new-${i}`} className="border-b last:border-0">
                 <td className="border-r p-0">
-                  <input className={`${CELL} min-w-44`} value={row.item} onChange={(e) => set(i, 'item', e.target.value)} placeholder="Material" />
+                  <input className={`${CELL} min-w-40`} value={row.item} onChange={(e) => setField(i, 'item', e.target.value)} placeholder="Commodity" />
                 </td>
                 <td className="border-r p-0">
-                  <input className={`${CELL} min-w-36`} value={row.supplier} onChange={(e) => set(i, 'supplier', e.target.value)} placeholder="Supplier" />
+                  <input className={`${CELL} min-w-20 text-right tabular-nums`} inputMode="decimal" value={row.price} onChange={(e) => setField(i, 'price', e.target.value)} placeholder="0" />
                 </td>
                 <td className="border-r p-0">
-                  <input className={`${CELL} min-w-24 text-right tabular-nums`} inputMode="decimal" value={row.quantity} onChange={(e) => set(i, 'quantity', e.target.value)} placeholder="0" />
+                  <input className={`${CELL} min-w-16`} value={row.unit} onChange={(e) => setField(i, 'unit', e.target.value)} placeholder="kg" />
                 </td>
+                {row.vendors.map((v, vi) => (
+                  <Fragment key={vi}>
+                    <td className="border-l p-0">
+                      <input className={`${CELL} min-w-28`} value={v.name} onChange={(e) => setVendor(i, vi, 'name', e.target.value)} placeholder="Vendor" />
+                    </td>
+                    <td className="border-r p-0">
+                      <input className={`${CELL} min-w-20 text-right tabular-nums`} inputMode="decimal" value={v.price} onChange={(e) => setVendor(i, vi, 'price', e.target.value)} placeholder="0" />
+                    </td>
+                  </Fragment>
+                ))}
                 <td className="border-r p-0">
-                  <input className={`${CELL} min-w-20`} value={row.unit} onChange={(e) => set(i, 'unit', e.target.value)} placeholder="cft" />
-                </td>
-                <td className="border-r p-0">
-                  <input className={`${CELL} min-w-24 text-right tabular-nums`} inputMode="decimal" value={row.rate} onChange={(e) => set(i, 'rate', e.target.value)} placeholder="0.00" />
-                </td>
-                <td className="border-r p-0">
-                  <input className={`${CELL} min-w-28`} list="sourcing-status" value={row.status} onChange={(e) => set(i, 'status', e.target.value)} placeholder="Pending" />
-                </td>
-                <td className="border-r p-0">
-                  <input className={`${CELL} min-w-36`} type="date" value={row.date} onChange={(e) => set(i, 'date', e.target.value)} />
-                </td>
-                <td className="border-r p-0">
-                  <input className={`${CELL} min-w-44`} value={row.remark} onChange={(e) => set(i, 'remark', e.target.value)} placeholder="Note" />
+                  <input className={`${CELL} min-w-36`} value={row.remark} onChange={(e) => setField(i, 'remark', e.target.value)} placeholder="Note" />
                 </td>
                 <td className="p-1 align-middle">
                   <Button
@@ -139,11 +152,6 @@ export function SourcingGrid({ initial }: { initial: Entry[] }) {
             ))}
           </tbody>
         </table>
-        <datalist id="sourcing-status">
-          <option value="Pending" />
-          <option value="Ordered" />
-          <option value="Received" />
-        </datalist>
       </div>
 
       <div className="flex items-center justify-between gap-2">

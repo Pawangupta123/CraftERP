@@ -17,7 +17,7 @@ export default async function SourcingPage() {
       <div>
         <h1 className="font-heading text-2xl font-semibold tracking-tight">Sourcing</h1>
         <p className="text-sm text-muted-foreground">
-          Fill the table like a spreadsheet — type in the cells, add rows, then Save.
+          Vendor price comparison — one commodity per row, with each vendor&apos;s name and price. Fill like a spreadsheet, then Save.
         </p>
       </div>
 
