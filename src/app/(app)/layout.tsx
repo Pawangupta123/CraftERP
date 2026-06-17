@@ -5,16 +5,16 @@ import type { Role } from '@/lib/nav'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Local JWT verification (ES256 signing keys) — no auth-server round-trip per load.
+  const { data: claims } = await supabase.auth.getClaims()
+  const user = claims?.claims
 
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('name, email, role')
-    .eq('id', user.id)
+    .eq('id', user.sub)
     .maybeSingle()
 
   const role: Role = profile?.role ?? 'operator'

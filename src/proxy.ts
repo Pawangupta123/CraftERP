@@ -31,10 +31,13 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: getUser() revalidates the token with Supabase — do not remove.
+  // getClaims() verifies the JWT locally against the project's asymmetric (ES256)
+  // signing keys — no round-trip to the Supabase auth server on every request,
+  // while getSession() inside it still refreshes the cookie when the token expires.
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: claims,
+  } = await supabase.auth.getClaims()
+  const user = claims?.claims ?? null
 
   const path = request.nextUrl.pathname
   const isPublic = PUBLIC_PATHS.includes(path)
