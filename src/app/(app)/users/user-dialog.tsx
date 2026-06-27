@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const ROLES: Role[] = ['admin', 'operator', 'manager', 'store_manager']
+const ROLES: Role[] = ['admin', 'operator', 'manager', 'store_manager', 'supervisor']
 
 export function UserDialog({ trigger }: { trigger: React.ReactNode }) {
   const router = useRouter()

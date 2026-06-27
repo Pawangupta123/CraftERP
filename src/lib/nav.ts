@@ -10,6 +10,7 @@ import {
   ShoppingBag,
   ClipboardList,
   Truck,
+  NotebookPen,
   type LucideIcon,
 } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
@@ -24,7 +25,7 @@ export type NavItem = {
   roles: Role[]
 }
 
-const ALL: Role[] = ['admin', 'operator', 'manager', 'store_manager']
+const ALL: Role[] = ['admin', 'operator', 'manager', 'store_manager', 'supervisor']
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ALL },
@@ -33,6 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Purchase Orders', href: '/purchase-orders', icon: FileText, roles: ALL },
   { label: 'Procurement', href: '/procurement', icon: ClipboardList, roles: ['admin', 'operator'] },
   { label: 'Inward', href: '/inward', icon: Truck, roles: ['admin', 'operator'] },
+  { label: 'Daily Updates', href: '/daily-updates', icon: NotebookPen, roles: ['admin', 'supervisor'] },
   { label: 'Sourcing', href: '/sourcing', icon: ShoppingBag, roles: ['admin', 'operator'] },
   { label: 'Inventory', href: '/inventory', icon: Warehouse, roles: ['admin', 'operator', 'store_manager'] },
   { label: 'Payments', href: '/payments', icon: CreditCard, roles: ['admin'] },
@@ -45,6 +47,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   operator: 'Operator',
   manager: 'Manager',
   store_manager: 'Store Manager',
+  supervisor: 'Supervisor',
 }
 
 export function navForRole(role: Role): NavItem[] {

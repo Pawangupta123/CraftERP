@@ -41,7 +41,7 @@ export type ProfileRow = {
   role: Role
 }
 
-const ROLES: Role[] = ['admin', 'operator', 'manager', 'store_manager']
+const ROLES: Role[] = ['admin', 'operator', 'manager', 'store_manager', 'supervisor']
 
 function initials(text: string) {
   return text.trim().slice(0, 2).toUpperCase()

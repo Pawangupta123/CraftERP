@@ -121,6 +121,64 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_updates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date: string
+          id: string
+          po_id: string | null
+          remark: string | null
+          sku_id: string | null
+          supervisor_name: string | null
+          work_done: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          po_id?: string | null
+          remark?: string | null
+          sku_id?: string | null
+          supervisor_name?: string | null
+          work_done?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          po_id?: string | null
+          remark?: string | null
+          sku_id?: string | null
+          supervisor_name?: string | null
+          work_done?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_updates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_updates_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_updates_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hardware_components: {
         Row: {
           description: string | null
@@ -826,7 +884,7 @@ export type Database = {
     Enums: {
       currency_code: "INR" | "USD" | "EUR"
       po_status: "upcoming" | "in_progress" | "completed"
-      user_role: "admin" | "operator" | "manager" | "store_manager"
+      user_role: "admin" | "operator" | "manager" | "store_manager" | "supervisor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -956,7 +1014,7 @@ export const Constants = {
     Enums: {
       currency_code: ["INR", "USD", "EUR"],
       po_status: ["upcoming", "in_progress", "completed"],
-      user_role: ["admin", "operator", "manager", "store_manager"],
+      user_role: ["admin", "operator", "manager", "store_manager", "supervisor"],
     },
   },
 } as const
