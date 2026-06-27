@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { POStagePipeline, type LineStage, type StageMode } from '../po-stage-pipeline'
-import { DownloadPdfButton } from '../po-pdf-button'
+import { PrintPdfButton } from '../po-pdf-button'
 import { StatusControl } from '../po-detail-client'
 
 export const metadata: Metadata = { title: 'Purchase order · CraftERP' }
@@ -118,7 +118,7 @@ export default async function PODetailPage({ params }: { params: Promise<{ id: s
               <StatusControl id={po.id} status={po.status} />
             </>
           ) : null}
-          <DownloadPdfButton po={po} buyer={buyer} lines={lines} totalCbm={totalCbm} company={company} />
+          <PrintPdfButton po={po} buyer={buyer} lines={lines} totalCbm={totalCbm} company={company} />
         </div>
       </div>
 
