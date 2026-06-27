@@ -206,6 +206,163 @@ export type Database = {
           },
         ]
       }
+      inward_entries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date: string
+          id: string
+          invoice_no: string | null
+          inward_no: string | null
+          material_type: string
+          party: string | null
+          po_id: string | null
+          remark: string | null
+          total_cft: number
+          total_pieces: number
+          vehicle_no: string | null
+          wood_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          invoice_no?: string | null
+          inward_no?: string | null
+          material_type?: string
+          party?: string | null
+          po_id?: string | null
+          remark?: string | null
+          total_cft?: number
+          total_pieces?: number
+          vehicle_no?: string | null
+          wood_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          invoice_no?: string | null
+          inward_no?: string | null
+          material_type?: string
+          party?: string | null
+          po_id?: string | null
+          remark?: string | null
+          total_cft?: number
+          total_pieces?: number
+          vehicle_no?: string | null
+          wood_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inward_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inward_entries_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inward_wood_items: {
+        Row: {
+          cft: number
+          id: string
+          inward_entry_id: string
+          length: number | null
+          pieces: number
+          thickness: number | null
+          width: number | null
+        }
+        Insert: {
+          cft?: number
+          id?: string
+          inward_entry_id: string
+          length?: number | null
+          pieces?: number
+          thickness?: number | null
+          width?: number | null
+        }
+        Update: {
+          cft?: number
+          id?: string
+          inward_entry_id?: string
+          length?: number | null
+          pieces?: number
+          thickness?: number | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inward_wood_items_inward_entry_id_fkey"
+            columns: ["inward_entry_id"]
+            isOneToOne: false
+            referencedRelation: "inward_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inward_rows: {
+        Row: {
+          description: string | null
+          id: string
+          inward_entry_id: string
+          length: number | null
+          name: string | null
+          position: number | null
+          qty: number | null
+          remark: string | null
+          section: string | null
+          sku_id: string | null
+          unit: string | null
+          width: number | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          inward_entry_id: string
+          length?: number | null
+          name?: string | null
+          position?: number | null
+          qty?: number | null
+          remark?: string | null
+          section?: string | null
+          sku_id?: string | null
+          unit?: string | null
+          width?: number | null
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          inward_entry_id?: string
+          length?: number | null
+          name?: string | null
+          position?: number | null
+          qty?: number | null
+          remark?: string | null
+          section?: string | null
+          sku_id?: string | null
+          unit?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inward_rows_inward_entry_id_fkey"
+            columns: ["inward_entry_id"]
+            isOneToOne: false
+            referencedRelation: "inward_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       iron_components: {
         Row: {
           description: string | null
@@ -537,13 +694,13 @@ export type Database = {
           date: string | null
           id: string
           item: string | null
+          price: number | null
           quantity: number | null
           rate: number | null
           remark: string | null
           status: string | null
           supplier: string | null
           unit: string | null
-          price: number | null
           vendors: Json
         }
         Insert: {
@@ -551,13 +708,13 @@ export type Database = {
           date?: string | null
           id?: string
           item?: string | null
+          price?: number | null
           quantity?: number | null
           rate?: number | null
           remark?: string | null
           status?: string | null
           supplier?: string | null
           unit?: string | null
-          price?: number | null
           vendors?: Json
         }
         Update: {
@@ -565,13 +722,13 @@ export type Database = {
           date?: string | null
           id?: string
           item?: string | null
+          price?: number | null
           quantity?: number | null
           rate?: number | null
           remark?: string | null
           status?: string | null
           supplier?: string | null
           unit?: string | null
-          price?: number | null
           vendors?: Json
         }
         Relationships: []

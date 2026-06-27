@@ -9,6 +9,7 @@ import {
   Settings,
   ShoppingBag,
   ClipboardList,
+  Truck,
   type LucideIcon,
 } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
@@ -31,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Items (SKU)', href: '/skus', icon: Package, roles: ['admin', 'operator'] },
   { label: 'Purchase Orders', href: '/purchase-orders', icon: FileText, roles: ALL },
   { label: 'Procurement', href: '/procurement', icon: ClipboardList, roles: ['admin', 'operator'] },
+  { label: 'Inward', href: '/inward', icon: Truck, roles: ['admin', 'operator'] },
   { label: 'Sourcing', href: '/sourcing', icon: ShoppingBag, roles: ['admin', 'operator'] },
   { label: 'Inventory', href: '/inventory', icon: Warehouse, roles: ['admin', 'operator', 'store_manager'] },
   { label: 'Payments', href: '/payments', icon: CreditCard, roles: ['admin'] },
