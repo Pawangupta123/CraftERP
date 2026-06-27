@@ -15,9 +15,9 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { POStagePipeline, type LineStage } from '../po-stage-pipeline'
-import { PoPrintDoc } from '../po-print'
-import { PrintButton, StatusControl } from '../po-detail-client'
+import { POStagePipeline, type LineStage, type StageMode } from '../po-stage-pipeline'
+import { DownloadPdfButton } from '../po-pdf-button'
+import { StatusControl } from '../po-detail-client'
 
 export const metadata: Metadata = { title: 'Purchase order · CraftERP' }
 
@@ -43,6 +43,8 @@ export default async function PODetailPage({ params }: { params: Promise<{ id: s
     ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
     : { data: null }
   const isAdmin = me?.role === 'admin'
+  // admin: full control · manager: advance forward only · others: read-only
+  const stageMode: StageMode = isAdmin ? 'full' : me?.role === 'manager' ? 'forward' : 'none'
 
   const { data: po } = await supabase.from('purchase_orders').select('*').eq('id', id).maybeSingle()
   if (!po) notFound()
@@ -116,7 +118,7 @@ export default async function PODetailPage({ params }: { params: Promise<{ id: s
               <StatusControl id={po.id} status={po.status} />
             </>
           ) : null}
-          <PrintButton />
+          <DownloadPdfButton po={po} buyer={buyer} lines={lines} totalCbm={totalCbm} company={company} />
         </div>
       </div>
 
@@ -202,9 +204,15 @@ export default async function PODetailPage({ params }: { params: Promise<{ id: s
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="font-heading text-base font-medium">Items &amp; production stage</h2>
-              <span className="text-xs text-muted-foreground">Tap a stage to update</span>
+              <span className="text-xs text-muted-foreground">
+                {stageMode === 'full'
+                  ? 'Tap a stage to update'
+                  : stageMode === 'forward'
+                    ? 'Tap the next stage to advance'
+                    : 'Read only'}
+              </span>
             </div>
-            <POStagePipeline poId={po.id} lines={lines} />
+            <POStagePipeline poId={po.id} lines={lines} mode={stageMode} />
           </div>
 
           {/* Total CBM */}
@@ -217,8 +225,6 @@ export default async function PODetailPage({ params }: { params: Promise<{ id: s
         </CardContent>
       </Card>
       </div>
-
-      <PoPrintDoc po={po} buyer={buyer} lines={lines} totalCbm={totalCbm} company={company} />
     </div>
   )
 }

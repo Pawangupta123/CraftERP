@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { nextSeq } from '@/lib/next-seq'
+import { stageIndex } from '@/lib/po-stages'
 import type { Database } from '@/lib/database.types'
 
 type POStatus = Database['public']['Enums']['po_status']
@@ -177,11 +178,31 @@ export async function updateLineItemStage(
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null }
+  const role = me?.role
+  if (role !== 'admin' && role !== 'manager') {
+    return { error: 'You do not have permission to update production stages.' }
+  }
+
   const { data: existing } = await supabase
     .from('stage_tracking')
-    .select('id')
+    .select('id, current_stage')
     .eq('po_line_item_id', lineItemId)
     .maybeSingle()
+
+  // Managers can only advance a stage forward — never reset or move it back.
+  if (role === 'manager') {
+    const curIdx = stageIndex(existing?.current_stage ?? null)
+    const nextIdx = stageIndex(stage)
+    if (nextIdx <= curIdx) {
+      return { error: 'Managers can only move a stage forward, not back.' }
+    }
+  }
 
   if (existing) {
     const { error } = await supabase

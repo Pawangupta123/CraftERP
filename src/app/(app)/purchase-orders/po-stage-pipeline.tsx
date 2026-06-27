@@ -27,7 +27,10 @@ export type LineStage = {
   stage: StageKey | null
 }
 
-function StageTrack({ poId, line }: { poId: string; line: LineStage }) {
+/** full = admin (any stage + reset), forward = manager (advance only), none = read-only. */
+export type StageMode = 'full' | 'forward' | 'none'
+
+function StageTrack({ poId, line, mode }: { poId: string; line: LineStage; mode: StageMode }) {
   const router = useRouter()
   const [stage, setStage] = useState<StageKey | null>(line.stage)
   const [pending, startTransition] = useTransition()
@@ -53,6 +56,8 @@ function StageTrack({ poId, line }: { poId: string; line: LineStage }) {
         const reached = activeIdx >= i
         const isCurrent = activeIdx === i
         const Icon = s.icon
+        // none = nothing clickable; forward = only stages ahead of the current one.
+        const locked = mode === 'none' || (mode === 'forward' && i <= activeIdx)
         return (
           <div key={s.key} className="flex items-end">
             {i > 0 ? (
@@ -61,13 +66,14 @@ function StageTrack({ poId, line }: { poId: string; line: LineStage }) {
             <button
               type="button"
               onClick={() => commit(s.key)}
-              disabled={pending}
-              title={`Mark ${s.label}`}
-              className="flex shrink-0 flex-col items-center gap-1"
+              disabled={pending || locked}
+              title={locked ? s.label : `Mark ${s.label}`}
+              className="flex shrink-0 flex-col items-center gap-1 disabled:cursor-default"
             >
               <span
                 className={cn(
-                  'grid size-8 place-items-center rounded-full text-white transition-transform hover:scale-105',
+                  'grid size-8 place-items-center rounded-full text-white transition-transform',
+                  !locked && 'hover:scale-105',
                   reached ? s.fill : 'bg-muted text-muted-foreground',
                   isCurrent && 'ring-2 ring-foreground/20 ring-offset-2',
                 )}
@@ -81,20 +87,30 @@ function StageTrack({ poId, line }: { poId: string; line: LineStage }) {
           </div>
         )
       })}
-      <button
-        type="button"
-        onClick={() => commit(null)}
-        disabled={pending || activeIdx < 0}
-        title="Reset to not started"
-        className="mb-3.5 ml-1 grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
-      >
-        <RotateCcw className="size-3" />
-      </button>
+      {mode === 'full' ? (
+        <button
+          type="button"
+          onClick={() => commit(null)}
+          disabled={pending || activeIdx < 0}
+          title="Reset to not started"
+          className="mb-3.5 ml-1 grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+        >
+          <RotateCcw className="size-3" />
+        </button>
+      ) : null}
     </div>
   )
 }
 
-export function POStagePipeline({ poId, lines }: { poId: string; lines: LineStage[] }) {
+export function POStagePipeline({
+  poId,
+  lines,
+  mode = 'none',
+}: {
+  poId: string
+  lines: LineStage[]
+  mode?: StageMode
+}) {
   return (
     <div className="overflow-x-auto rounded-xl border bg-card">
       <Table>
@@ -138,7 +154,7 @@ export function POStagePipeline({ poId, lines }: { poId: string; lines: LineStag
                 <TableCell className="text-right align-middle tabular-nums">{line.qty}</TableCell>
                 <TableCell className="text-right align-middle tabular-nums">{line.cbm}</TableCell>
                 <TableCell className="align-middle">
-                  <StageTrack poId={poId} line={line} />
+                  <StageTrack poId={poId} line={line} mode={mode} />
                 </TableCell>
               </TableRow>
             ))
