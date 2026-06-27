@@ -11,6 +11,14 @@ export const metadata: Metadata = { title: 'Purchase Orders · CraftERP' }
 
 export default async function PurchaseOrdersPage() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null }
+  const isAdmin = me?.role === 'admin'
+
   const [posRes, buyersRes, liRes] = await Promise.all([
     supabase
       .from('purchase_orders')
@@ -68,24 +76,28 @@ export default async function PurchaseOrdersPage() {
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Purchase Orders</h1>
           <p className="text-sm text-muted-foreground">Pick a buyer to see their orders, stage and deadlines.</p>
         </div>
-        <Button asChild>
-          <Link href="/purchase-orders/new">
-            <Plus className="size-4" />
-            New PO
-          </Link>
-        </Button>
+        {isAdmin ? (
+          <Button asChild>
+            <Link href="/purchase-orders/new">
+              <Plus className="size-4" />
+              New PO
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       {rows.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
             <p className="text-sm text-muted-foreground">No purchase orders yet.</p>
-            <Button asChild variant="outline">
-              <Link href="/purchase-orders/new">
-                <Plus className="size-4" />
-                Create your first PO
-              </Link>
-            </Button>
+            {isAdmin ? (
+              <Button asChild variant="outline">
+                <Link href="/purchase-orders/new">
+                  <Plus className="size-4" />
+                  Create your first PO
+                </Link>
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
       ) : activeBuyers.length === 0 ? (
@@ -95,7 +107,7 @@ export default async function PurchaseOrdersPage() {
           </CardContent>
         </Card>
       ) : (
-        <POsByBuyer buyers={activeBuyers} pos={rows} />
+        <POsByBuyer buyers={activeBuyers} pos={rows} isAdmin={isAdmin} />
       )}
     </div>
   )

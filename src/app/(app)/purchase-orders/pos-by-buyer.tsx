@@ -80,7 +80,7 @@ function ItemsCell({ items }: { items: Item[] }) {
   )
 }
 
-function PORowItem({ po }: { po: PORow }) {
+function PORowItem({ po, isAdmin }: { po: PORow; isAdmin: boolean }) {
   const [pending, startTransition] = useTransition()
 
   function handleDelete() {
@@ -110,40 +110,44 @@ function PORowItem({ po }: { po: PORow }) {
               <Eye className="size-4" />
             </Link>
           </Button>
-          <Button asChild variant="ghost" size="icon-sm" aria-label={`Edit ${po.po_no}`}>
-            <Link href={`/purchase-orders/${po.id}/edit`}>
-              <Pencil className="size-4" />
-            </Link>
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={`Delete ${po.po_no}`} disabled={pending} className="text-muted-foreground hover:text-destructive">
-                <Trash2 className="size-4" />
+          {isAdmin ? (
+            <>
+              <Button asChild variant="ghost" size="icon-sm" aria-label={`Edit ${po.po_no}`}>
+                <Link href={`/purchase-orders/${po.id}/edit`}>
+                  <Pencil className="size-4" />
+                </Link>
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete purchase order?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  <span className="font-medium text-foreground">{po.po_no}</span> and its items will be
-                  permanently deleted. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" onClick={handleDelete}>
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon-sm" aria-label={`Delete ${po.po_no}`} disabled={pending} className="text-muted-foreground hover:text-destructive">
+                    <Trash2 className="size-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete purchase order?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      <span className="font-medium text-foreground">{po.po_no}</span> and its items will be
+                      permanently deleted. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction variant="destructive" onClick={handleDelete}>
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          ) : null}
         </div>
       </TableCell>
     </TableRow>
   )
 }
 
-export function POsByBuyer({ buyers, pos }: { buyers: BuyerOpt[]; pos: PORow[] }) {
+export function POsByBuyer({ buyers, pos, isAdmin }: { buyers: BuyerOpt[]; pos: PORow[]; isAdmin: boolean }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | POStatus>('all')
@@ -266,7 +270,7 @@ export function POsByBuyer({ buyers, pos }: { buyers: BuyerOpt[]; pos: PORow[] }
                 </TableCell>
               </TableRow>
             ) : (
-              shown.map((po) => <PORowItem key={po.id} po={po} />)
+              shown.map((po) => <PORowItem key={po.id} po={po} isAdmin={isAdmin} />)
             )}
           </TableBody>
         </Table>

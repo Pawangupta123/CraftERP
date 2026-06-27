@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
+import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { DailyForm } from './daily-form'
+import { DailyDialog } from './daily-dialog'
 import { DailyTable, type DailyRow } from './daily-table'
 
 export const metadata: Metadata = { title: 'Daily Updates · CraftERP' }
@@ -20,7 +22,7 @@ export default async function DailyUpdatesPage() {
       .select('id, date, po_id, sku_id, supervisor_name, work_done, remark')
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
-      .limit(100),
+      .limit(200),
   ])
 
   let defaultName = ''
@@ -43,23 +45,31 @@ export default async function DailyUpdatesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Daily Updates</h1>
-        <p className="text-sm text-muted-foreground">Supervisors log daily work per PO/item. Admin sees all entries.</p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Daily Updates</h1>
+          <p className="text-sm text-muted-foreground">Daily work logged per PO / item. Filter by date to review a day.</p>
+        </div>
+        <DailyDialog
+          pos={posRes.data ?? []}
+          skus={skusRes.data ?? []}
+          defaultName={defaultName}
+          trigger={
+            <Button>
+              <Plus className="size-4" />
+              Add update
+            </Button>
+          }
+        />
       </div>
 
-      <DailyForm pos={posRes.data ?? []} skus={skusRes.data ?? []} defaultName={defaultName} />
-
-      <div className="space-y-3">
-        <h2 className="font-heading text-base font-medium">Recent updates</h2>
-        {rows.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">No updates yet.</CardContent>
-          </Card>
-        ) : (
-          <DailyTable rows={rows} />
-        )}
-      </div>
+      {rows.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">No updates yet.</CardContent>
+        </Card>
+      ) : (
+        <DailyTable rows={rows} />
+      )}
     </div>
   )
 }

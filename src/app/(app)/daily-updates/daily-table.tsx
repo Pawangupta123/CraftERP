@@ -1,10 +1,12 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Trash2 } from 'lucide-react'
 import { deleteDailyUpdate } from './actions'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,26 +82,81 @@ function Row({ row }: { row: DailyRow }) {
 }
 
 export function DailyTable({ rows }: { rows: DailyRow[] }) {
+  const [date, setDate] = useState('')
+  const [search, setSearch] = useState('')
+
+  const shown = rows.filter((r) => {
+    const dateOk = !date || r.date === date
+    const q = search.trim().toLowerCase()
+    const searchOk =
+      !q ||
+      [r.po_no, r.sku_label, r.supervisor_name, r.work_done, r.remark].some((v) =>
+        (v ?? '').toLowerCase().includes(q),
+      )
+    return dateOk && searchOk
+  })
+
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>PO</TableHead>
-            <TableHead>Item</TableHead>
-            <TableHead>Supervisor</TableHead>
-            <TableHead>Work done</TableHead>
-            <TableHead>Remark</TableHead>
-            <TableHead className="w-0 text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <Row key={row.id} row={row} />
-          ))}
-        </TableBody>
-      </Table>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="f-date" className="text-xs text-muted-foreground">
+            Date
+          </Label>
+          <Input id="f-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9 w-44" />
+        </div>
+        <div className="flex-1 space-y-1.5">
+          <Label htmlFor="f-search" className="text-xs text-muted-foreground">
+            Search
+          </Label>
+          <Input
+            id="f-search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="PO, item, supervisor, work…"
+            className="h-9 max-w-sm"
+          />
+        </div>
+        {date || search ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setDate('')
+              setSearch('')
+            }}
+          >
+            Clear
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>PO</TableHead>
+              <TableHead>Item</TableHead>
+              <TableHead>Supervisor</TableHead>
+              <TableHead>Work done</TableHead>
+              <TableHead>Remark</TableHead>
+              <TableHead className="w-0 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {shown.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                  No updates match.
+                </TableCell>
+              </TableRow>
+            ) : (
+              shown.map((row) => <Row key={row.id} row={row} />)
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }

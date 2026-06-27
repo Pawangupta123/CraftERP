@@ -36,6 +36,14 @@ export default async function PODetailPage({ params }: { params: Promise<{ id: s
   const { id } = await params
   const supabase = await createClient()
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null }
+  const isAdmin = me?.role === 'admin'
+
   const { data: po } = await supabase.from('purchase_orders').select('*').eq('id', id).maybeSingle()
   if (!po) notFound()
 
@@ -97,13 +105,17 @@ export default async function PODetailPage({ params }: { params: Promise<{ id: s
           Back to purchase orders
         </Link>
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/purchase-orders/${po.id}/edit`}>
-              <Pencil className="size-4" />
-              Edit
-            </Link>
-          </Button>
-          <StatusControl id={po.id} status={po.status} />
+          {isAdmin ? (
+            <>
+              <Button asChild variant="outline">
+                <Link href={`/purchase-orders/${po.id}/edit`}>
+                  <Pencil className="size-4" />
+                  Edit
+                </Link>
+              </Button>
+              <StatusControl id={po.id} status={po.status} />
+            </>
+          ) : null}
           <PrintButton />
         </div>
       </div>

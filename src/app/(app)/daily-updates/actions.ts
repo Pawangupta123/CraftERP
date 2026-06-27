@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
-export type DailyRow = {
+export type DailyPayload = {
+  date: string | null
   po_id: string | null
   sku_id: string | null
   supervisor_name: string | null
@@ -11,29 +12,25 @@ export type DailyRow = {
   remark: string | null
 }
 
-export async function createDailyUpdates(
-  date: string,
-  rows: DailyRow[],
-): Promise<{ error?: string }> {
-  const valid = rows.filter((r) => r.po_id || r.sku_id || r.work_done || r.remark)
-  if (valid.length === 0) return { error: 'Add at least one update.' }
+export async function createDailyUpdate(p: DailyPayload): Promise<{ error?: string }> {
+  if (!p.work_done && !p.po_id && !p.sku_id && !p.remark) {
+    return { error: 'Add at least the work done or a PO/item.' }
+  }
 
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const insert = valid.map((r) => ({
-    date: date || new Date().toISOString().slice(0, 10),
-    po_id: r.po_id,
-    sku_id: r.sku_id,
-    supervisor_name: r.supervisor_name,
-    work_done: r.work_done,
-    remark: r.remark,
+  const { error } = await supabase.from('daily_updates').insert({
+    date: p.date || new Date().toISOString().slice(0, 10),
+    po_id: p.po_id,
+    sku_id: p.sku_id,
+    supervisor_name: p.supervisor_name,
+    work_done: p.work_done,
+    remark: p.remark,
     created_by: user?.id ?? null,
-  }))
-
-  const { error } = await supabase.from('daily_updates').insert(insert)
+  })
   if (error) return { error: error.message }
 
   revalidatePath('/daily-updates')
