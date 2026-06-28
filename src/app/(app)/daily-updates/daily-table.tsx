@@ -113,7 +113,7 @@ export function DailyTable({ rows }: { rows: DailyRow[] }) {
             id="f-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="PO, item, supervisor, work…"
+            placeholder="PO, item, name, work…"
             className="h-9 max-w-sm"
           />
         </div>
@@ -138,7 +138,7 @@ export function DailyTable({ rows }: { rows: DailyRow[] }) {
               <TableHead>Date</TableHead>
               <TableHead>PO</TableHead>
               <TableHead>Item</TableHead>
-              <TableHead>Supervisor</TableHead>
+              <TableHead>Logged by</TableHead>
               <TableHead>Work done</TableHead>
               <TableHead>Remark</TableHead>
               <TableHead className="w-0 text-right">Actions</TableHead>

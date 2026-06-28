@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { STAGE_KEYS, type StageKey } from '@/lib/po-stages'
@@ -11,6 +11,15 @@ export const metadata: Metadata = { title: 'Edit purchase order · CraftERP' }
 export default async function EditPOPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null }
+  // Editing a PO is admin-only — managers can create but not edit.
+  if (me?.role !== 'admin') redirect(`/purchase-orders/${id}`)
 
   const { data: po } = await supabase.from('purchase_orders').select('*').eq('id', id).maybeSingle()
   if (!po) notFound()

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { POForm } from '../po-form'
@@ -8,6 +9,15 @@ export const metadata: Metadata = { title: 'New purchase order · CraftERP' }
 
 export default async function NewPOPage() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null }
+  // Only admins and managers may create a PO.
+  if (me?.role !== 'admin' && me?.role !== 'manager') redirect('/purchase-orders')
+
   const [buyersRes, skusRes] = await Promise.all([
     supabase.from('buyers').select('id, name').order('name'),
     supabase.from('skus').select('id, sku_no, name').order('sku_no'),

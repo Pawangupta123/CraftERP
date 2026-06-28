@@ -25,7 +25,7 @@ export type NavItem = {
   roles: Role[]
 }
 
-const ALL: Role[] = ['admin', 'operator', 'manager', 'store_manager', 'supervisor']
+const ALL: Role[] = ['admin', 'operator', 'manager']
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ALL },
@@ -34,9 +34,9 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Purchase Orders', href: '/purchase-orders', icon: FileText, roles: ALL },
   { label: 'Procurement', href: '/procurement', icon: ClipboardList, roles: ['admin'] },
   { label: 'Inward', href: '/inward', icon: Truck, roles: ['admin', 'operator'] },
-  { label: 'Daily Updates', href: '/daily-updates', icon: NotebookPen, roles: ['admin', 'supervisor'] },
+  { label: 'Daily Updates', href: '/daily-updates', icon: NotebookPen, roles: ['admin', 'manager'] },
   { label: 'Sourcing', href: '/sourcing', icon: ShoppingBag, roles: ['admin'] },
-  { label: 'Inventory', href: '/inventory', icon: Warehouse, roles: ['admin', 'operator', 'store_manager'] },
+  { label: 'Inventory', href: '/inventory', icon: Warehouse, roles: ['admin', 'operator'] },
   { label: 'Payments', href: '/payments', icon: CreditCard, roles: ['admin'] },
   { label: 'Users', href: '/users', icon: UserCog, roles: ['admin'] },
   { label: 'Settings', href: '/settings', icon: Settings, roles: ['admin'] },

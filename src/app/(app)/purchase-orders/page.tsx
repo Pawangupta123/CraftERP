@@ -18,6 +18,8 @@ export default async function PurchaseOrdersPage() {
     ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
     : { data: null }
   const isAdmin = me?.role === 'admin'
+  // Managers can create their own POs (but not edit/delete — those stay admin-only).
+  const canCreate = isAdmin || me?.role === 'manager'
 
   const [posRes, buyersRes, liRes] = await Promise.all([
     supabase
@@ -76,7 +78,7 @@ export default async function PurchaseOrdersPage() {
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Purchase Orders</h1>
           <p className="text-sm text-muted-foreground">Pick a buyer to see their orders, stage and deadlines.</p>
         </div>
-        {isAdmin ? (
+        {canCreate ? (
           <Button asChild>
             <Link href="/purchase-orders/new">
               <Plus className="size-4" />
@@ -90,7 +92,7 @@ export default async function PurchaseOrdersPage() {
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
             <p className="text-sm text-muted-foreground">No purchase orders yet.</p>
-            {isAdmin ? (
+            {canCreate ? (
               <Button asChild variant="outline">
                 <Link href="/purchase-orders/new">
                   <Plus className="size-4" />

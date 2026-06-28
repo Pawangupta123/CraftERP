@@ -111,7 +111,7 @@ export function DailyDialog({
               <Input id="d-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="d-sup">Supervisor</Label>
+              <Label htmlFor="d-sup">Logged by</Label>
               <Input id="d-sup" value={supervisor} onChange={(e) => setSupervisor(e.target.value)} placeholder="Name" className="h-9" />
             </div>
             <div className="space-y-1.5">
