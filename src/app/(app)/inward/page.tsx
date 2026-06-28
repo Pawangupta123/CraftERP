@@ -10,6 +10,14 @@ export const metadata: Metadata = { title: 'Inward · CraftERP' }
 
 export default async function InwardPage() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null }
+  const isAdmin = me?.role === 'admin'
+
   const [entriesRes, posRes] = await Promise.all([
     supabase
       .from('inward_entries')
@@ -39,12 +47,14 @@ export default async function InwardPage() {
           <p className="text-sm text-muted-foreground">Material received against purchase orders.</p>
         </div>
         <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link href="/inward/status">
-              <ClipboardCheck className="size-4" />
-              Procurement status
-            </Link>
-          </Button>
+          {isAdmin ? (
+            <Button asChild variant="outline">
+              <Link href="/inward/status">
+                <ClipboardCheck className="size-4" />
+                Procurement status
+              </Link>
+            </Button>
+          ) : null}
           <Button asChild variant="outline">
             <Link href="/inward/material/new">
               <Plus className="size-4" />

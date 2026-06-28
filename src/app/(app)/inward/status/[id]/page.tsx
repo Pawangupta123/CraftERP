@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getProcurement, type MaterialStat } from '@/lib/procurement'
@@ -66,11 +66,20 @@ function MaterialPanel({ label, stat }: { label: string; stat: MaterialStat }) {
 
 export default async function POProcurementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null }
+  if (me?.role !== 'admin') redirect('/inward')
+
   const list = await getProcurement(id)
   const data = list[0]
   if (!data) notFound()
 
-  const supabase = await createClient()
   const { data: inwards } = await supabase
     .from('inward_entries')
     .select('id, inward_no, date, material_type, total_cft, total_pieces')

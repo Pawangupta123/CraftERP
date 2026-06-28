@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 import { getProcurement } from '@/lib/procurement'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,6 +19,15 @@ import { MaterialCell } from '../material-cell'
 export const metadata: Metadata = { title: 'Procurement status · CraftERP' }
 
 export default async function InwardStatusPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null }
+  if (me?.role !== 'admin') redirect('/inward')
+
   const rows = await getProcurement()
 
   return (
